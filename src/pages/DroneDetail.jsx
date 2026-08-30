@@ -245,7 +245,7 @@ export default function DroneDetail() {
                     : 'bg-surface-soft text-ink-secondary'
                 }`}
               >
-                {drone.simulable ? 'Simulation ready' : 'Not simulated'}
+                {drone.simulable ? 'Simulable' : 'Not simulable'}
               </span>
             </div>
             {adminMode && !editing && (
@@ -394,7 +394,7 @@ export default function DroneDetail() {
                     <a
                       href={stl.archivo_url}
                       download
-                      className="inline-flex items-center gap-1.5 rounded-full bg-brand-500 px-4 py-2 text-[13px] font-medium text-ink transition-[background-color,transform] duration-350 ease-emil hover:bg-brand-600 active:scale-[0.97]"
+                      className="inline-flex items-center gap-1.5 rounded-full bg-blue-600 px-4 py-2 text-[13px] font-medium text-white transition-[background-color,transform] duration-350 ease-emil hover:bg-blue-700 active:scale-[0.97]"
                     >
                       <Download size={14} strokeWidth={2} />
                       Download
