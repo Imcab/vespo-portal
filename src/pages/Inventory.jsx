@@ -104,13 +104,13 @@ export default function Inventory() {
   const [editForm, setEditForm] = useState(emptyForm);
 
   async function fetchItems() {
-    const { data } = await supabase.from('inventario').select('*, areas(nombre)').order('nombre');
+    const { data } = await supabase.from('inventario').select('*, areas(nombre, color)').order('nombre');
     setItems(data || []);
   }
 
   useEffect(() => {
     async function loadItems() {
-      const { data, error } = await supabase.from('inventario').select('*, areas(nombre)').order('nombre');
+      const { data, error } = await supabase.from('inventario').select('*, areas(nombre, color)').order('nombre');
       if (error) console.error('Error:', error);
       else setItems(data || []);
       setLoading(false);
@@ -229,7 +229,15 @@ export default function Inventory() {
                   </tr>
                 ) : (
                   <tr key={item.id} className="border-b border-line-soft text-ink last:border-0">
-                    <td className="px-4 py-3 text-ink-secondary">{item.areas?.nombre || 'General'}</td>
+                    <td className="px-4 py-3 text-ink-secondary">
+                      <span className="flex items-center gap-1.5">
+                        <span
+                          className="h-2 w-2 shrink-0 rounded-full"
+                          style={{ backgroundColor: item.areas?.color || '#d9d3c9' }}
+                        />
+                        {item.areas?.nombre || 'General'}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 font-medium">{item.nombre}</td>
                     <td className="px-4 py-3 text-ink-secondary">{TIPO_LABEL[item.tipo] || item.tipo}</td>
                     <td className="px-4 py-3">{item.cantidad}</td>

@@ -20,7 +20,7 @@ export default function Members() {
     async function fetchMembers() {
       const { data, error } = await supabase
         .from('miembros')
-        .select('*, areas(nombre)')
+        .select('*, miembro_areas(areas(nombre, color))')
         .eq('activo', true)
         .order('nombre');
 
@@ -74,13 +74,24 @@ export default function Members() {
                   {initials(member.nombre)}
                 </span>
               )}
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <h3 className="truncate text-[15px] font-semibold text-ink">{member.nombre}</h3>
-                <p className="truncate text-[13px] text-ink-secondary">
-                  {member.rol}
-                  {member.areas?.nombre ? ` · ${member.areas.nombre}` : ''}
-                </p>
+                {member.rol && <p className="truncate text-[13px] text-ink-secondary">{member.rol}</p>}
               </div>
+              {member.miembro_areas?.length > 0 && (
+                <div className="flex shrink-0 items-center gap-1">
+                  {member.miembro_areas.map(({ areas: area }, idx) =>
+                    area ? (
+                      <span
+                        key={idx}
+                        title={area.nombre}
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: area.color || '#6c450e' }}
+                      />
+                    ) : null,
+                  )}
+                </div>
+              )}
             </Reveal>
           ))}
         </div>

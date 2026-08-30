@@ -4,7 +4,8 @@ import { useAuth } from '../hooks/useAuth';
 import Reveal from '../components/Reveal';
 import AdminAddPanel from '../components/AdminAddPanel';
 import AdminEditForm from '../components/AdminEditForm';
-import { Calendar, Pencil } from 'lucide-react';
+import MonthCalendar from '../components/MonthCalendar';
+import { Calendar, Pencil, List, CalendarDays } from 'lucide-react';
 
 const TIPO_LABEL = {
   general: 'General',
@@ -58,6 +59,8 @@ export default function CalendarPage() {
   const [editTipo, setEditTipo] = useState('general');
   const [editFechaInicio, setEditFechaInicio] = useState('');
   const [editFechaFin, setEditFechaFin] = useState('');
+  const [view, setView] = useState('list');
+  const [selectedDate, setSelectedDate] = useState(null);
 
   function startEdit(event) {
     setEditingId(event.id);
@@ -119,7 +122,31 @@ export default function CalendarPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-5 py-12 sm:px-8 sm:py-16">
-      <h1 className="mb-10 text-[22px] font-semibold tracking-tight text-ink">Calendar</h1>
+      <div className="mb-10 flex items-center justify-between gap-3">
+        <h1 className="text-[22px] font-semibold tracking-tight text-ink">Calendar</h1>
+        <div className="flex items-center gap-1 rounded-full bg-surface-soft p-1">
+          <button
+            type="button"
+            onClick={() => setView('list')}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-medium transition-colors duration-350 ease-emil ${
+              view === 'list' ? 'bg-white text-ink shadow-soft-xs' : 'text-ink-secondary'
+            }`}
+          >
+            <List size={14} strokeWidth={1.75} />
+            List
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('month')}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-medium transition-colors duration-350 ease-emil ${
+              view === 'month' ? 'bg-white text-ink shadow-soft-xs' : 'text-ink-secondary'
+            }`}
+          >
+            <CalendarDays size={14} strokeWidth={1.75} />
+            Month
+          </button>
+        </div>
+      </div>
 
       {adminMode && (
         <AdminAddPanel label="Add event" onSubmit={handleAdd} submitLabel="Add event">
@@ -166,6 +193,19 @@ export default function CalendarPage() {
         </AdminAddPanel>
       )}
 
+      {!loading && view === 'month' && (
+        <MonthCalendar events={events} selectedDate={selectedDate} onSelectDate={setSelectedDate} />
+      )}
+
+      {selectedDate && (
+        <div className="mb-4 flex items-center gap-2 text-[13px] text-ink-secondary">
+          Showing {selectedDate.toLocaleDateString('en-US', { dateStyle: 'medium' })}
+          <button type="button" onClick={() => setSelectedDate(null)} className="font-medium text-brown-600 hover:opacity-70">
+            Clear
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex flex-col gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -174,17 +214,28 @@ export default function CalendarPage() {
             </div>
           ))}
         </div>
-      ) : events.length === 0 ? (
-        <Reveal
-          as="div"
-          className="flex flex-col items-center gap-3 rounded-card bg-surface-soft px-6 py-24 text-center"
-        >
-          <Calendar size={40} strokeWidth={1.25} className="text-ink-tertiary" />
-          <p className="text-[15px] text-ink-secondary">No events scheduled yet.</p>
-        </Reveal>
-      ) : (
+      ) : (() => {
+        const visibleEvents = selectedDate
+          ? events.filter((e) => new Date(e.fecha_inicio).toDateString() === selectedDate.toDateString())
+          : events;
+
+        if (visibleEvents.length === 0) {
+          return (
+            <Reveal
+              as="div"
+              className="flex flex-col items-center gap-3 rounded-card bg-surface-soft px-6 py-24 text-center"
+            >
+              <Calendar size={40} strokeWidth={1.25} className="text-ink-tertiary" />
+              <p className="text-[15px] text-ink-secondary">
+                {selectedDate ? 'No events on this day.' : 'No events scheduled yet.'}
+              </p>
+            </Reveal>
+          );
+        }
+
+        return (
         <div className="flex flex-col gap-3">
-          {events.map((event, i) => {
+          {visibleEvents.map((event, i) => {
             const start = new Date(event.fecha_inicio);
             const isRealEvent = event.tipo !== 'tarea';
             return (
@@ -270,7 +321,8 @@ export default function CalendarPage() {
             );
           })}
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

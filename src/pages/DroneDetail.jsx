@@ -6,13 +6,14 @@ import Reveal from '../components/Reveal';
 import AdminAddPanel from '../components/AdminAddPanel';
 import AdminEditForm from '../components/AdminEditForm';
 import ResourceIcon from '../components/ResourceIcon';
-import { ArrowLeft, Drone, Package, Wrench, Download, Pencil, Plus, X, Box } from 'lucide-react';
+import Toggle from '../components/Toggle';
+import { ArrowLeft, Drone, Package, Wrench, Download, Pencil, Plus, X, FileCog } from 'lucide-react';
 import { droneDisplayName } from '../utils/drone';
 
 const inputClass =
   'rounded-control border border-line bg-white px-3.5 py-2.5 text-[14px] text-ink outline-none transition-colors duration-350 ease-emil focus:border-brown-600';
 
-const emptyStlForm = { nombre: '', descripcion: '', archivoUrl: '' };
+const emptyStlForm = { nombre: '', descripcion: '', archivoUrl: '', simulable: false };
 
 function DetailSkeleton() {
   return (
@@ -55,6 +56,11 @@ function StlFields({ form, setForm }) {
         value={form.archivoUrl}
         onChange={(e) => setForm({ ...form, archivoUrl: e.target.value })}
         className={inputClass}
+      />
+      <Toggle
+        checked={form.simulable}
+        onChange={(v) => setForm({ ...form, simulable: v })}
+        label="Available in simulation"
       />
     </>
   );
@@ -137,6 +143,7 @@ export default function DroneDetail() {
       nombre: stlAddForm.nombre.trim(),
       descripcion: stlAddForm.descripcion.trim() || null,
       archivo_url: stlAddForm.archivoUrl.trim(),
+      simulable: stlAddForm.simulable,
     });
     if (error) throw error;
     setStlAddForm(emptyStlForm);
@@ -145,7 +152,12 @@ export default function DroneDetail() {
 
   function startEditStl(stl) {
     setEditingStlId(stl.id);
-    setStlEditForm({ nombre: stl.nombre, descripcion: stl.descripcion || '', archivoUrl: stl.archivo_url });
+    setStlEditForm({
+      nombre: stl.nombre,
+      descripcion: stl.descripcion || '',
+      archivoUrl: stl.archivo_url,
+      simulable: stl.simulable,
+    });
   }
 
   async function saveEditStl(stlId) {
@@ -155,6 +167,7 @@ export default function DroneDetail() {
         nombre: stlEditForm.nombre.trim(),
         descripcion: stlEditForm.descripcion.trim() || null,
         archivo_url: stlEditForm.archivoUrl.trim(),
+        simulable: stlEditForm.simulable,
       })
       .eq('id', stlId);
     if (error) throw error;
@@ -340,18 +353,18 @@ export default function DroneDetail() {
       <Reveal as="section" className="mt-16">
         <div className="mb-5 flex items-center gap-2">
           <Package size={19} strokeWidth={1.75} className="text-ink" />
-          <h2 className="text-[20px] font-semibold tracking-tight text-ink">STL Files</h2>
+          <h2 className="text-[20px] font-semibold tracking-tight text-ink">Configuration</h2>
         </div>
 
         {adminMode && (
-          <AdminAddPanel label="Add STL file" onSubmit={handleAddStl} submitLabel="Add file">
+          <AdminAddPanel label="Add file" onSubmit={handleAddStl} submitLabel="Add file">
             <StlFields form={stlAddForm} setForm={setStlAddForm} />
           </AdminAddPanel>
         )}
 
         {stlFiles.length === 0 ? (
           <p className="rounded-card bg-surface-soft px-6 py-10 text-center text-[14px] text-ink-secondary">
-            No STL files available yet.
+            No configuration files available yet.
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -360,10 +373,21 @@ export default function DroneDetail() {
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-control bg-brand-100 text-brown-600">
-                      <Box size={16} strokeWidth={1.75} />
+                      <FileCog size={16} strokeWidth={1.75} />
                     </span>
                     <div className="min-w-0">
-                      <h4 className="truncate text-[15px] font-semibold text-ink">{stl.nombre}</h4>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <h4 className="truncate text-[15px] font-semibold text-ink">{stl.nombre}</h4>
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-medium ${
+                            stl.simulable
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-white text-ink-secondary ring-1 ring-inset ring-line'
+                          }`}
+                        >
+                          {stl.simulable ? 'Simulation ready' : 'Not simulated'}
+                        </span>
+                      </div>
                       {stl.descripcion && (
                         <p className="mt-0.5 truncate text-[13px] text-ink-secondary">{stl.descripcion}</p>
                       )}

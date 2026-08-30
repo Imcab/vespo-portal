@@ -13,7 +13,11 @@ export function AuthProvider({ children }) {
       setMember(null);
       return;
     }
-    const { data } = await supabase.from('miembros').select('*').eq('user_id', userId).single();
+    const { data } = await supabase
+      .from('miembros')
+      .select('*, miembro_areas(area_id)')
+      .eq('user_id', userId)
+      .single();
     setMember(data ?? null);
   }, []);
 

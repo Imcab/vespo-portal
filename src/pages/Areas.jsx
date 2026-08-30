@@ -13,7 +13,7 @@ export default function Areas() {
   const [assigning, setAssigning] = useState(null);
 
   async function fetchMembers() {
-    const { data } = await supabase.from('miembros').select('*').order('nombre');
+    const { data } = await supabase.from('miembros').select('*, miembro_areas(area_id)').order('nombre');
     setMembers(data || []);
   }
 
@@ -27,14 +27,16 @@ export default function Areas() {
     loadAreas();
     supabase
       .from('miembros')
-      .select('*')
+      .select('*, miembro_areas(area_id)')
       .order('nombre')
       .then(({ data }) => setMembers(data || []));
   }, []);
 
-  async function assignMember(memberId, areaId) {
+  async function toggleMember(memberId, areaId, isInArea) {
     setAssigning(memberId);
-    const { error } = await supabase.from('miembros').update({ area_id: areaId }).eq('id', memberId);
+    const { error } = isInArea
+      ? await supabase.from('miembro_areas').delete().eq('miembro_id', memberId).eq('area_id', areaId)
+      : await supabase.from('miembro_areas').insert({ miembro_id: memberId, area_id: areaId });
     if (error) console.error('Error:', error);
     else await fetchMembers();
     setAssigning(null);
@@ -65,7 +67,9 @@ export default function Areas() {
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {areas.map((area, i) => {
             const isOpen = openAreaId === area.id;
-            const memberCount = members.filter((m) => m.area_id === area.id).length;
+            const memberCount = members.filter((m) =>
+              (m.miembro_areas || []).some((row) => row.area_id === area.id),
+            ).length;
 
             return (
               <Reveal key={area.id} delay={Math.min(i, 5) * 60} className="rounded-card bg-surface-soft p-5">
@@ -89,13 +93,13 @@ export default function Areas() {
                 {adminMode && isOpen && (
                   <div className="mt-4 flex flex-col gap-1 border-t border-line-soft pt-3">
                     {members.map((member) => {
-                      const isInArea = member.area_id === area.id;
+                      const isInArea = (member.miembro_areas || []).some((row) => row.area_id === area.id);
                       return (
                         <button
                           key={member.id}
                           type="button"
                           disabled={assigning === member.id}
-                          onClick={() => assignMember(member.id, isInArea ? null : area.id)}
+                          onClick={() => toggleMember(member.id, area.id, isInArea)}
                           className="flex items-center justify-between rounded-control px-2 py-1.5 text-left text-[13px] text-ink-secondary transition-colors duration-350 ease-emil hover:bg-white hover:text-ink disabled:opacity-60"
                         >
                           <span className="truncate">{member.nombre}</span>
