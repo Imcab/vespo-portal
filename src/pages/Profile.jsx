@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { supabase } from '../utils/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { Camera } from 'lucide-react';
@@ -13,51 +13,27 @@ function initials(name) {
 }
 
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, member, refreshMember } = useAuth();
   const fileInputRef = useRef(null);
 
-  const [member, setMember] = useState(null);
-  const [areas, setAreas] = useState([]);
-  const [nombre, setNombre] = useState('');
-  const [areaId, setAreaId] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [nombre, setNombre] = useState(member?.nombre || '');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
-
-  useEffect(() => {
-    async function load() {
-      const [{ data: memberRow }, { data: areaRows }] = await Promise.all([
-        supabase.from('miembros').select('*').eq('user_id', user.id).single(),
-        supabase.from('areas').select('*').order('nombre'),
-      ]);
-      if (memberRow) {
-        setMember(memberRow);
-        setNombre(memberRow.nombre || '');
-        setAreaId(memberRow.area_id || '');
-      }
-      setAreas(areaRows || []);
-      setLoading(false);
-    }
-    load();
-  }, [user.id]);
 
   async function handleSave(e) {
     e.preventDefault();
     setSaving(true);
     setMessage('');
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('miembros')
-      .update({ nombre: nombre.trim(), area_id: areaId || null })
-      .eq('user_id', user.id)
-      .select()
-      .single();
+      .update({ nombre: nombre.trim() })
+      .eq('user_id', user.id);
 
-    if (error) {
-      setMessage(error.message);
-    } else {
-      setMember(data);
+    if (error) setMessage(error.message);
+    else {
+      await refreshMember();
       setMessage('Saved.');
     }
     setSaving(false);
@@ -86,19 +62,14 @@ export default function Profile() {
     const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(path);
     const fotoUrl = `${publicUrlData.publicUrl}?t=${Date.now()}`;
 
-    const { data, error } = await supabase
-      .from('miembros')
-      .update({ foto_url: fotoUrl })
-      .eq('user_id', user.id)
-      .select()
-      .single();
+    const { error } = await supabase.from('miembros').update({ foto_url: fotoUrl }).eq('user_id', user.id);
 
     if (error) setMessage(error.message);
-    else setMember(data);
+    else await refreshMember();
     setUploading(false);
   }
 
-  if (loading) {
+  if (!member) {
     return (
       <div className="mx-auto max-w-lg px-5 py-12 sm:px-8 sm:py-16">
         <div className="skeleton h-8 w-1/2 animate-shimmer rounded-full" />
@@ -154,22 +125,6 @@ export default function Profile() {
             onChange={(e) => setNombre(e.target.value)}
             className="rounded-control border border-line bg-white px-3.5 py-2.5 text-[14px] text-ink outline-none transition-colors duration-350 ease-emil focus:border-brown-600"
           />
-        </label>
-
-        <label className="flex flex-col gap-1.5">
-          <span className="text-[13px] font-medium text-ink-secondary">Area</span>
-          <select
-            value={areaId}
-            onChange={(e) => setAreaId(e.target.value)}
-            className="rounded-control border border-line bg-white px-3.5 py-2.5 text-[14px] text-ink outline-none transition-colors duration-350 ease-emil focus:border-brown-600"
-          >
-            <option value="">No area</option>
-            {areas.map((area) => (
-              <option key={area.id} value={area.id}>
-                {area.nombre}
-              </option>
-            ))}
-          </select>
         </label>
 
         <label className="flex flex-col gap-1.5">

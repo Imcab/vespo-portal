@@ -1,14 +1,24 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabase';
+import { useAuth } from '../hooks/useAuth';
 import Reveal from '../components/Reveal';
+import AdminAddPanel from '../components/AdminAddPanel';
 import { Wrench, Link2 } from 'lucide-react';
 
+const inputClass =
+  'rounded-control border border-line bg-white px-3.5 py-2.5 text-[14px] text-ink outline-none transition-colors duration-350 ease-emil focus:border-brown-600';
+
 export default function Tools() {
+  const { adminMode } = useAuth();
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [titulo, setTitulo] = useState('');
+  const [descripcion, setDescripcion] = useState('');
+  const [url, setUrl] = useState('');
+  const [categoria, setCategoria] = useState('');
 
   useEffect(() => {
-    async function fetchResources() {
+    async function loadResources() {
       const { data, error } = await supabase
         .from('recursos')
         .select('*')
@@ -19,12 +29,70 @@ export default function Tools() {
       else setResources(data || []);
       setLoading(false);
     }
-    fetchResources();
+    loadResources();
   }, []);
+
+  async function handleAdd() {
+    const { error } = await supabase.from('recursos').insert({
+      titulo: titulo.trim(),
+      descripcion: descripcion.trim() || null,
+      url: url.trim(),
+      categoria: categoria.trim() || null,
+      dron_id: null,
+    });
+    if (error) throw error;
+    setTitulo('');
+    setDescripcion('');
+    setUrl('');
+    setCategoria('');
+
+    const { data } = await supabase
+      .from('recursos')
+      .select('*')
+      .is('dron_id', null)
+      .eq('activo', true)
+      .order('created_at', { ascending: false });
+    setResources(data || []);
+  }
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-12 sm:px-8 sm:py-16">
       <h1 className="mb-10 text-[22px] font-semibold tracking-tight text-ink">Tools</h1>
+
+      {adminMode && (
+        <AdminAddPanel label="Add tool" onSubmit={handleAdd} submitLabel="Add tool">
+          <input
+            type="text"
+            required
+            placeholder="Title"
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            className={inputClass}
+          />
+          <textarea
+            placeholder="Description (optional)"
+            value={descripcion}
+            onChange={(e) => setDescripcion(e.target.value)}
+            rows={2}
+            className={inputClass}
+          />
+          <input
+            type="url"
+            required
+            placeholder="https://…"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            className={inputClass}
+          />
+          <input
+            type="text"
+            placeholder="Category (optional)"
+            value={categoria}
+            onChange={(e) => setCategoria(e.target.value)}
+            className={inputClass}
+          />
+        </AdminAddPanel>
+      )}
 
       {loading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabase';
+import { useAuth } from '../hooks/useAuth';
 import DroneCard from '../components/DroneCard';
 import Reveal from '../components/Reveal';
+import AdminAddPanel from '../components/AdminAddPanel';
 import { Drone } from 'lucide-react';
+
+const inputClass =
+  'rounded-control border border-line bg-white px-3.5 py-2.5 text-[14px] text-ink outline-none transition-colors duration-350 ease-emil focus:border-brown-600';
 
 function CardSkeleton() {
   return (
@@ -18,23 +23,48 @@ function CardSkeleton() {
 }
 
 export default function DroneGallery() {
+  const { adminMode } = useAuth();
   const [drones, setDrones] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [nombre, setNombre] = useState('');
+  const [modelo, setModelo] = useState('');
+  const [descripcion, setDescripcion] = useState('');
+  const [imagenUrl, setImagenUrl] = useState('');
 
   useEffect(() => {
-    async function fetchDrones() {
+    async function loadDrones() {
       const { data, error } = await supabase
         .from('drones')
         .select('*')
         .eq('activo', true)
         .order('created_at', { ascending: false });
-
       if (error) console.error('Error:', error);
       else setDrones(data || []);
       setLoading(false);
     }
-    fetchDrones();
+    loadDrones();
   }, []);
+
+  async function handleAdd() {
+    const { error } = await supabase.from('drones').insert({
+      nombre: nombre.trim(),
+      modelo: modelo.trim() || null,
+      descripcion: descripcion.trim() || null,
+      imagen_url: imagenUrl.trim() || null,
+    });
+    if (error) throw error;
+    setNombre('');
+    setModelo('');
+    setDescripcion('');
+    setImagenUrl('');
+
+    const { data } = await supabase
+      .from('drones')
+      .select('*')
+      .eq('activo', true)
+      .order('created_at', { ascending: false });
+    setDrones(data || []);
+  }
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16">
@@ -46,6 +76,40 @@ export default function DroneGallery() {
           </span>
         )}
       </Reveal>
+
+      {adminMode && (
+        <AdminAddPanel label="Add drone" onSubmit={handleAdd} submitLabel="Add drone">
+          <input
+            type="text"
+            required
+            placeholder="Name"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            className={inputClass}
+          />
+          <input
+            type="text"
+            placeholder="Model (optional)"
+            value={modelo}
+            onChange={(e) => setModelo(e.target.value)}
+            className={inputClass}
+          />
+          <textarea
+            placeholder="Description (optional)"
+            value={descripcion}
+            onChange={(e) => setDescripcion(e.target.value)}
+            rows={2}
+            className={inputClass}
+          />
+          <input
+            type="url"
+            placeholder="Image URL (optional)"
+            value={imagenUrl}
+            onChange={(e) => setImagenUrl(e.target.value)}
+            className={inputClass}
+          />
+        </AdminAddPanel>
+      )}
 
       {loading ? (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">

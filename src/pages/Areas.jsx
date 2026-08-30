@@ -1,21 +1,44 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabase';
+import { useAuth } from '../hooks/useAuth';
 import Reveal from '../components/Reveal';
-import { Layers } from 'lucide-react';
+import { Layers, Check } from 'lucide-react';
 
 export default function Areas() {
+  const { adminMode } = useAuth();
   const [areas, setAreas] = useState([]);
+  const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [openAreaId, setOpenAreaId] = useState(null);
+  const [assigning, setAssigning] = useState(null);
+
+  async function fetchMembers() {
+    const { data } = await supabase.from('miembros').select('*').order('nombre');
+    setMembers(data || []);
+  }
 
   useEffect(() => {
-    async function fetchAreas() {
+    async function loadAreas() {
       const { data, error } = await supabase.from('areas').select('*').order('nombre');
       if (error) console.error('Error:', error);
       else setAreas(data || []);
       setLoading(false);
     }
-    fetchAreas();
+    loadAreas();
+    supabase
+      .from('miembros')
+      .select('*')
+      .order('nombre')
+      .then(({ data }) => setMembers(data || []));
   }, []);
+
+  async function assignMember(memberId, areaId) {
+    setAssigning(memberId);
+    const { error } = await supabase.from('miembros').update({ area_id: areaId }).eq('id', memberId);
+    if (error) console.error('Error:', error);
+    else await fetchMembers();
+    setAssigning(null);
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16">
@@ -40,20 +63,51 @@ export default function Areas() {
         </Reveal>
       ) : (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {areas.map((area, i) => (
-            <Reveal key={area.id} delay={Math.min(i, 5) * 60} className="rounded-card bg-surface-soft p-5">
-              <div className="flex items-center gap-2">
-                <span
-                  className="h-2.5 w-2.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: area.color || '#6c450e' }}
-                />
-                <h3 className="text-[15px] font-semibold text-ink">{area.nombre}</h3>
-              </div>
-              {area.descripcion && (
-                <p className="mt-2 text-[13px] leading-relaxed text-ink-secondary">{area.descripcion}</p>
-              )}
-            </Reveal>
-          ))}
+          {areas.map((area, i) => {
+            const isOpen = openAreaId === area.id;
+            const memberCount = members.filter((m) => m.area_id === area.id).length;
+
+            return (
+              <Reveal key={area.id} delay={Math.min(i, 5) * 60} className="rounded-card bg-surface-soft p-5">
+                <button
+                  type="button"
+                  disabled={!adminMode}
+                  onClick={() => setOpenAreaId(isOpen ? null : area.id)}
+                  className="flex w-full items-center gap-2 text-left disabled:cursor-default"
+                >
+                  <span
+                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: area.color || '#6c450e' }}
+                  />
+                  <h3 className="text-[15px] font-semibold text-ink">{area.nombre}</h3>
+                  <span className="ml-auto text-[12px] text-ink-secondary">{memberCount}</span>
+                </button>
+                {area.descripcion && (
+                  <p className="mt-2 text-[13px] leading-relaxed text-ink-secondary">{area.descripcion}</p>
+                )}
+
+                {adminMode && isOpen && (
+                  <div className="mt-4 flex flex-col gap-1 border-t border-line-soft pt-3">
+                    {members.map((member) => {
+                      const isInArea = member.area_id === area.id;
+                      return (
+                        <button
+                          key={member.id}
+                          type="button"
+                          disabled={assigning === member.id}
+                          onClick={() => assignMember(member.id, isInArea ? null : area.id)}
+                          className="flex items-center justify-between rounded-control px-2 py-1.5 text-left text-[13px] text-ink-secondary transition-colors duration-350 ease-emil hover:bg-white hover:text-ink disabled:opacity-60"
+                        >
+                          <span className="truncate">{member.nombre}</span>
+                          {isInArea && <Check size={15} strokeWidth={2} className="shrink-0 text-brown-600" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </Reveal>
+            );
+          })}
         </div>
       )}
     </div>

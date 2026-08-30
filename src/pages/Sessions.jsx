@@ -1,16 +1,26 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabase';
+import { useAuth } from '../hooks/useAuth';
 import Reveal from '../components/Reveal';
+import AdminAddPanel from '../components/AdminAddPanel';
 import { CalendarClock } from 'lucide-react';
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+const inputClass =
+  'rounded-control border border-line bg-white px-3.5 py-2.5 text-[14px] text-ink outline-none transition-colors duration-350 ease-emil focus:border-brown-600';
 
 export default function Sessions() {
+  const { adminMode } = useAuth();
   const [sessions, setSessions] = useState([]);
+  const [areas, setAreas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [titulo, setTitulo] = useState('');
+  const [descripcion, setDescripcion] = useState('');
+  const [fecha, setFecha] = useState('');
+  const [areaId, setAreaId] = useState('');
 
   useEffect(() => {
-    async function fetchSessions() {
+    async function loadSessions() {
       const { data, error } = await supabase
         .from('sesiones')
         .select('*, areas(nombre)')
@@ -19,12 +29,69 @@ export default function Sessions() {
       else setSessions(data || []);
       setLoading(false);
     }
-    fetchSessions();
+    loadSessions();
+    supabase
+      .from('areas')
+      .select('*')
+      .order('nombre')
+      .then(({ data }) => setAreas(data || []));
   }, []);
+
+  async function handleAdd() {
+    const { error } = await supabase.from('sesiones').insert({
+      titulo: titulo.trim(),
+      descripcion: descripcion.trim() || null,
+      fecha: fecha ? new Date(fecha).toISOString() : new Date().toISOString(),
+      area_id: areaId || null,
+    });
+    if (error) throw error;
+    setTitulo('');
+    setDescripcion('');
+    setFecha('');
+    setAreaId('');
+
+    const { data } = await supabase.from('sesiones').select('*, areas(nombre)').order('fecha', { ascending: false });
+    setSessions(data || []);
+  }
 
   return (
     <div className="mx-auto max-w-4xl px-5 py-12 sm:px-8 sm:py-16">
       <h1 className="mb-10 text-[22px] font-semibold tracking-tight text-ink">Sessions</h1>
+
+      {adminMode && (
+        <AdminAddPanel label="Add session" onSubmit={handleAdd} submitLabel="Add session">
+          <input
+            type="text"
+            required
+            placeholder="Title"
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            className={inputClass}
+          />
+          <textarea
+            placeholder="Description (optional)"
+            value={descripcion}
+            onChange={(e) => setDescripcion(e.target.value)}
+            rows={2}
+            className={inputClass}
+          />
+          <input
+            type="datetime-local"
+            required
+            value={fecha}
+            onChange={(e) => setFecha(e.target.value)}
+            className={inputClass}
+          />
+          <select value={areaId} onChange={(e) => setAreaId(e.target.value)} className={inputClass}>
+            <option value="">No area</option>
+            {areas.map((area) => (
+              <option key={area.id} value={area.id}>
+                {area.nombre}
+              </option>
+            ))}
+          </select>
+        </AdminAddPanel>
+      )}
 
       {loading ? (
         <div className="flex flex-col gap-4">

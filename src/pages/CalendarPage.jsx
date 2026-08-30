@@ -1,29 +1,131 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabase';
+import { useAuth } from '../hooks/useAuth';
 import Reveal from '../components/Reveal';
+import AdminAddPanel from '../components/AdminAddPanel';
 import { Calendar } from 'lucide-react';
 
-const TIPO_LABEL = { general: 'General', sesion: 'Session', competencia: 'Competition', entrega: 'Deadline' };
+const TIPO_LABEL = {
+  general: 'General',
+  sesion: 'Session',
+  competencia: 'Competition',
+  entrega: 'Deadline',
+  tarea: 'Task',
+};
 const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'full', timeStyle: 'short' });
 const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short' });
+const inputClass =
+  'rounded-control border border-line bg-white px-3.5 py-2.5 text-[14px] text-ink outline-none transition-colors duration-350 ease-emil focus:border-brown-600';
+
+async function loadEventsAndTasks() {
+  const [{ data: eventos, error: eventosError }, { data: tareas, error: tareasError }] = await Promise.all([
+    supabase.from('eventos').select('*').order('fecha_inicio', { ascending: true }),
+    supabase
+      .from('tareas')
+      .select('id, titulo, descripcion, fecha_limite')
+      .eq('aprobada', true)
+      .not('fecha_limite', 'is', null),
+  ]);
+  if (eventosError) console.error('Error:', eventosError);
+  if (tareasError) console.error('Error:', tareasError);
+
+  const approvedTasksAsEvents = (tareas || []).map((task) => ({
+    id: `tarea-${task.id}`,
+    titulo: task.titulo,
+    descripcion: task.descripcion,
+    tipo: 'tarea',
+    fecha_inicio: task.fecha_limite,
+  }));
+
+  return [...(eventos || []), ...approvedTasksAsEvents].sort(
+    (a, b) => new Date(a.fecha_inicio) - new Date(b.fecha_inicio),
+  );
+}
 
 export default function CalendarPage() {
+  const { adminMode } = useAuth();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [titulo, setTitulo] = useState('');
+  const [descripcion, setDescripcion] = useState('');
+  const [tipo, setTipo] = useState('general');
+  const [fechaInicio, setFechaInicio] = useState('');
+  const [fechaFin, setFechaFin] = useState('');
 
   useEffect(() => {
-    async function fetchEvents() {
-      const { data, error } = await supabase.from('eventos').select('*').order('fecha_inicio', { ascending: true });
-      if (error) console.error('Error:', error);
-      else setEvents(data || []);
+    async function load() {
+      const merged = await loadEventsAndTasks();
+      setEvents(merged);
       setLoading(false);
     }
-    fetchEvents();
+    load();
   }, []);
+
+  async function handleAdd() {
+    const { error } = await supabase.from('eventos').insert({
+      titulo: titulo.trim(),
+      descripcion: descripcion.trim() || null,
+      tipo,
+      fecha_inicio: new Date(fechaInicio).toISOString(),
+      fecha_fin: fechaFin ? new Date(fechaFin).toISOString() : null,
+    });
+    if (error) throw error;
+    setTitulo('');
+    setDescripcion('');
+    setTipo('general');
+    setFechaInicio('');
+    setFechaFin('');
+    setEvents(await loadEventsAndTasks());
+  }
 
   return (
     <div className="mx-auto max-w-4xl px-5 py-12 sm:px-8 sm:py-16">
       <h1 className="mb-10 text-[22px] font-semibold tracking-tight text-ink">Calendar</h1>
+
+      {adminMode && (
+        <AdminAddPanel label="Add event" onSubmit={handleAdd} submitLabel="Add event">
+          <input
+            type="text"
+            required
+            placeholder="Title"
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            className={inputClass}
+          />
+          <textarea
+            placeholder="Description (optional)"
+            value={descripcion}
+            onChange={(e) => setDescripcion(e.target.value)}
+            rows={2}
+            className={inputClass}
+          />
+          <select value={tipo} onChange={(e) => setTipo(e.target.value)} className={inputClass}>
+            <option value="general">General</option>
+            <option value="sesion">Session</option>
+            <option value="competencia">Competition</option>
+            <option value="entrega">Deadline</option>
+          </select>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[12px] text-ink-secondary">Start</span>
+            <input
+              type="datetime-local"
+              required
+              value={fechaInicio}
+              onChange={(e) => setFechaInicio(e.target.value)}
+              className={inputClass}
+            />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[12px] text-ink-secondary">End (optional)</span>
+            <input
+              type="datetime-local"
+              value={fechaFin}
+              onChange={(e) => setFechaFin(e.target.value)}
+              className={inputClass}
+            />
+          </label>
+        </AdminAddPanel>
+      )}
 
       {loading ? (
         <div className="flex flex-col gap-3">
