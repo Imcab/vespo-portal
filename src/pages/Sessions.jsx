@@ -3,7 +3,8 @@ import { supabase } from '../utils/supabase';
 import { useAuth } from '../hooks/useAuth';
 import Reveal from '../components/Reveal';
 import AdminAddPanel from '../components/AdminAddPanel';
-import { CalendarClock } from 'lucide-react';
+import AdminEditForm from '../components/AdminEditForm';
+import { CalendarClock, Pencil } from 'lucide-react';
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 const inputClass =
@@ -18,6 +19,46 @@ export default function Sessions() {
   const [descripcion, setDescripcion] = useState('');
   const [fecha, setFecha] = useState('');
   const [areaId, setAreaId] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editTitulo, setEditTitulo] = useState('');
+  const [editDescripcion, setEditDescripcion] = useState('');
+  const [editFecha, setEditFecha] = useState('');
+  const [editAreaId, setEditAreaId] = useState('');
+
+  async function fetchSessions() {
+    const { data } = await supabase.from('sesiones').select('*, areas(nombre)').order('fecha', { ascending: false });
+    setSessions(data || []);
+  }
+
+  function startEdit(session) {
+    setEditingId(session.id);
+    setEditTitulo(session.titulo);
+    setEditDescripcion(session.descripcion || '');
+    setEditFecha(session.fecha ? session.fecha.slice(0, 16) : '');
+    setEditAreaId(session.area_id || '');
+  }
+
+  async function saveEdit(id) {
+    const { error } = await supabase
+      .from('sesiones')
+      .update({
+        titulo: editTitulo.trim(),
+        descripcion: editDescripcion.trim() || null,
+        fecha: new Date(editFecha).toISOString(),
+        area_id: editAreaId || null,
+      })
+      .eq('id', id);
+    if (error) throw error;
+    setEditingId(null);
+    fetchSessions();
+  }
+
+  async function deleteSession(id) {
+    const { error } = await supabase.from('sesiones').delete().eq('id', id);
+    if (error) throw error;
+    setEditingId(null);
+    fetchSessions();
+  }
 
   useEffect(() => {
     async function loadSessions() {
@@ -49,9 +90,7 @@ export default function Sessions() {
     setDescripcion('');
     setFecha('');
     setAreaId('');
-
-    const { data } = await supabase.from('sesiones').select('*, areas(nombre)').order('fecha', { ascending: false });
-    setSessions(data || []);
+    fetchSessions();
   }
 
   return (
@@ -116,15 +155,64 @@ export default function Sessions() {
             <Reveal key={session.id} delay={Math.min(i, 5) * 60} className="rounded-card bg-surface-soft p-5">
               <div className="flex items-start justify-between gap-3">
                 <h3 className="text-[15px] font-semibold text-ink">{session.titulo}</h3>
-                {session.areas?.nombre && (
-                  <span className="shrink-0 rounded-full bg-brand-100 px-2.5 py-1 text-[11px] font-medium text-brown-600">
-                    {session.areas.nombre}
-                  </span>
-                )}
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {session.areas?.nombre && (
+                    <span className="rounded-full bg-brand-100 px-2.5 py-1 text-[11px] font-medium text-brown-600">
+                      {session.areas.nombre}
+                    </span>
+                  )}
+                  {adminMode && (
+                    <button
+                      type="button"
+                      onClick={() => startEdit(session)}
+                      className="rounded-control p-1 text-ink-secondary hover:bg-white hover:text-ink"
+                      aria-label="Edit session"
+                    >
+                      <Pencil size={14} strokeWidth={1.75} />
+                    </button>
+                  )}
+                </div>
               </div>
               <p className="mt-1 text-[12px] text-ink-secondary">{dateFormatter.format(new Date(session.fecha))}</p>
               {session.descripcion && (
                 <p className="mt-2 text-[13px] leading-relaxed text-ink-secondary">{session.descripcion}</p>
+              )}
+
+              {editingId === session.id && (
+                <AdminEditForm
+                  onSubmit={() => saveEdit(session.id)}
+                  onDelete={() => deleteSession(session.id)}
+                  onCancel={() => setEditingId(null)}
+                >
+                  <input
+                    type="text"
+                    required
+                    value={editTitulo}
+                    onChange={(e) => setEditTitulo(e.target.value)}
+                    className={inputClass}
+                  />
+                  <textarea
+                    value={editDescripcion}
+                    onChange={(e) => setEditDescripcion(e.target.value)}
+                    rows={2}
+                    className={inputClass}
+                  />
+                  <input
+                    type="datetime-local"
+                    required
+                    value={editFecha}
+                    onChange={(e) => setEditFecha(e.target.value)}
+                    className={inputClass}
+                  />
+                  <select value={editAreaId} onChange={(e) => setEditAreaId(e.target.value)} className={inputClass}>
+                    <option value="">No area</option>
+                    {areas.map((area) => (
+                      <option key={area.id} value={area.id}>
+                        {area.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </AdminEditForm>
               )}
             </Reveal>
           ))}

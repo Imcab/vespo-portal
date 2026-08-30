@@ -3,7 +3,8 @@ import { supabase } from '../utils/supabase';
 import { useAuth } from '../hooks/useAuth';
 import Reveal from '../components/Reveal';
 import AdminAddPanel from '../components/AdminAddPanel';
-import { CheckSquare } from 'lucide-react';
+import AdminEditForm from '../components/AdminEditForm';
+import { CheckSquare, Pencil } from 'lucide-react';
 
 const ESTADO_LABEL = { pendiente: 'Pending', en_progreso: 'In progress', completada: 'Completed' };
 const ESTADO_STYLE = {
@@ -29,6 +30,47 @@ export default function Tasks() {
   const [areaId, setAreaId] = useState('');
   const [asignadoA, setAsignadoA] = useState('');
   const [fechaLimite, setFechaLimite] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editTitulo, setEditTitulo] = useState('');
+  const [editDescripcion, setEditDescripcion] = useState('');
+  const [editPrioridad, setEditPrioridad] = useState('media');
+  const [editAreaId, setEditAreaId] = useState('');
+  const [editAsignadoA, setEditAsignadoA] = useState('');
+  const [editFechaLimite, setEditFechaLimite] = useState('');
+
+  function startEdit(task) {
+    setEditingId(task.id);
+    setEditTitulo(task.titulo);
+    setEditDescripcion(task.descripcion || '');
+    setEditPrioridad(task.prioridad);
+    setEditAreaId(task.area_id || '');
+    setEditAsignadoA(task.asignado_a || '');
+    setEditFechaLimite(task.fecha_limite || '');
+  }
+
+  async function saveEdit(id) {
+    const { error } = await supabase
+      .from('tareas')
+      .update({
+        titulo: editTitulo.trim(),
+        descripcion: editDescripcion.trim() || null,
+        prioridad: editPrioridad,
+        area_id: editAreaId || null,
+        asignado_a: editAsignadoA || null,
+        fecha_limite: editFechaLimite || null,
+      })
+      .eq('id', id);
+    if (error) throw error;
+    setEditingId(null);
+    fetchTasks();
+  }
+
+  async function deleteTask(id) {
+    const { error } = await supabase.from('tareas').delete().eq('id', id);
+    if (error) throw error;
+    setEditingId(null);
+    fetchTasks();
+  }
 
   async function fetchTasks() {
     const { data } = await supabase
@@ -186,6 +228,16 @@ export default function Tasks() {
                     >
                       {ESTADO_LABEL[task.estado] || task.estado}
                     </span>
+                    {adminMode && (
+                      <button
+                        type="button"
+                        onClick={() => startEdit(task)}
+                        className="rounded-control p-1 text-ink-secondary hover:bg-white hover:text-ink"
+                        aria-label="Edit task"
+                      >
+                        <Pencil size={14} strokeWidth={1.75} />
+                      </button>
+                    )}
                   </div>
                 </div>
                 {task.descripcion && (
@@ -218,6 +270,58 @@ export default function Tasks() {
                       </button>
                     )}
                   </div>
+                )}
+
+                {editingId === task.id && (
+                  <AdminEditForm
+                    onSubmit={() => saveEdit(task.id)}
+                    onDelete={() => deleteTask(task.id)}
+                    onCancel={() => setEditingId(null)}
+                  >
+                    <input
+                      type="text"
+                      required
+                      value={editTitulo}
+                      onChange={(e) => setEditTitulo(e.target.value)}
+                      className={inputClass}
+                    />
+                    <textarea
+                      value={editDescripcion}
+                      onChange={(e) => setEditDescripcion(e.target.value)}
+                      rows={2}
+                      className={inputClass}
+                    />
+                    <select value={editPrioridad} onChange={(e) => setEditPrioridad(e.target.value)} className={inputClass}>
+                      <option value="baja">Low priority</option>
+                      <option value="media">Medium priority</option>
+                      <option value="alta">High priority</option>
+                    </select>
+                    <select value={editAreaId} onChange={(e) => setEditAreaId(e.target.value)} className={inputClass}>
+                      <option value="">No area</option>
+                      {areas.map((area) => (
+                        <option key={area.id} value={area.id}>
+                          {area.nombre}
+                        </option>
+                      ))}
+                    </select>
+                    <select value={editAsignadoA} onChange={(e) => setEditAsignadoA(e.target.value)} className={inputClass}>
+                      <option value="">Everyone</option>
+                      {members.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.nombre}
+                        </option>
+                      ))}
+                    </select>
+                    <label className="flex flex-col gap-1.5">
+                      <span className="text-[12px] text-ink-secondary">Due date (optional)</span>
+                      <input
+                        type="date"
+                        value={editFechaLimite}
+                        onChange={(e) => setEditFechaLimite(e.target.value)}
+                        className={inputClass}
+                      />
+                    </label>
+                  </AdminEditForm>
                 )}
               </Reveal>
             );

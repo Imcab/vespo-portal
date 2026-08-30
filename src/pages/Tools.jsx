@@ -3,7 +3,8 @@ import { supabase } from '../utils/supabase';
 import { useAuth } from '../hooks/useAuth';
 import Reveal from '../components/Reveal';
 import AdminAddPanel from '../components/AdminAddPanel';
-import { Wrench, Link2 } from 'lucide-react';
+import AdminEditForm from '../components/AdminEditForm';
+import { Wrench, Link2, Pencil } from 'lucide-react';
 
 const inputClass =
   'rounded-control border border-line bg-white px-3.5 py-2.5 text-[14px] text-ink outline-none transition-colors duration-350 ease-emil focus:border-brown-600';
@@ -16,6 +17,55 @@ export default function Tools() {
   const [descripcion, setDescripcion] = useState('');
   const [url, setUrl] = useState('');
   const [categoria, setCategoria] = useState('');
+  const [iconoUrl, setIconoUrl] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editTitulo, setEditTitulo] = useState('');
+  const [editDescripcion, setEditDescripcion] = useState('');
+  const [editUrl, setEditUrl] = useState('');
+  const [editCategoria, setEditCategoria] = useState('');
+  const [editIconoUrl, setEditIconoUrl] = useState('');
+
+  async function fetchResources() {
+    const { data } = await supabase
+      .from('recursos')
+      .select('*')
+      .is('dron_id', null)
+      .eq('activo', true)
+      .order('created_at', { ascending: false });
+    setResources(data || []);
+  }
+
+  function startEdit(resource) {
+    setEditingId(resource.id);
+    setEditTitulo(resource.titulo);
+    setEditDescripcion(resource.descripcion || '');
+    setEditUrl(resource.url);
+    setEditCategoria(resource.categoria || '');
+    setEditIconoUrl(resource.icono_url || '');
+  }
+
+  async function saveEdit(id) {
+    const { error } = await supabase
+      .from('recursos')
+      .update({
+        titulo: editTitulo.trim(),
+        descripcion: editDescripcion.trim() || null,
+        url: editUrl.trim(),
+        categoria: editCategoria.trim() || null,
+        icono_url: editIconoUrl.trim() || null,
+      })
+      .eq('id', id);
+    if (error) throw error;
+    setEditingId(null);
+    fetchResources();
+  }
+
+  async function deleteResource(id) {
+    const { error } = await supabase.from('recursos').delete().eq('id', id);
+    if (error) throw error;
+    setEditingId(null);
+    fetchResources();
+  }
 
   useEffect(() => {
     async function loadResources() {
@@ -38,6 +88,7 @@ export default function Tools() {
       descripcion: descripcion.trim() || null,
       url: url.trim(),
       categoria: categoria.trim() || null,
+      icono_url: iconoUrl.trim() || null,
       dron_id: null,
     });
     if (error) throw error;
@@ -45,14 +96,8 @@ export default function Tools() {
     setDescripcion('');
     setUrl('');
     setCategoria('');
-
-    const { data } = await supabase
-      .from('recursos')
-      .select('*')
-      .is('dron_id', null)
-      .eq('activo', true)
-      .order('created_at', { ascending: false });
-    setResources(data || []);
+    setIconoUrl('');
+    fetchResources();
   }
 
   return (
@@ -91,6 +136,13 @@ export default function Tools() {
             onChange={(e) => setCategoria(e.target.value)}
             className={inputClass}
           />
+          <input
+            type="url"
+            placeholder="Icon URL (optional)"
+            value={iconoUrl}
+            onChange={(e) => setIconoUrl(e.target.value)}
+            className={inputClass}
+          />
         </AdminAddPanel>
       )}
 
@@ -113,12 +165,16 @@ export default function Tools() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {resources.map((resource, i) => (
-            <Reveal key={resource.id} delay={Math.min(i, 5) * 60}>
+            <Reveal
+              key={resource.id}
+              delay={Math.min(i, 5) * 60}
+              className="relative rounded-card bg-surface-soft transition-[transform,box-shadow] duration-450 ease-emil hover:-translate-y-0.5 hover:shadow-soft-lg"
+            >
               <a
                 href={resource.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex h-full items-start gap-3 rounded-card bg-surface-soft p-5 transition-[transform,box-shadow] duration-450 ease-emil hover:-translate-y-0.5 hover:shadow-soft-lg"
+                className={`flex h-full items-start gap-3 p-5 ${adminMode ? 'pr-10' : ''}`}
               >
                 {resource.icono_url ? (
                   <img src={resource.icono_url} alt="" className="h-8 w-8 shrink-0 rounded-control object-contain" />
@@ -141,6 +197,62 @@ export default function Tools() {
                   )}
                 </div>
               </a>
+
+              {adminMode && (
+                <button
+                  type="button"
+                  onClick={() => startEdit(resource)}
+                  className="absolute right-3 top-3 rounded-control p-1 text-ink-secondary hover:bg-white hover:text-ink"
+                  aria-label="Edit tool"
+                >
+                  <Pencil size={14} strokeWidth={1.75} />
+                </button>
+              )}
+
+              {editingId === resource.id && (
+                <div className="px-5 pb-5">
+                  <AdminEditForm
+                    onSubmit={() => saveEdit(resource.id)}
+                    onDelete={() => deleteResource(resource.id)}
+                    onCancel={() => setEditingId(null)}
+                  >
+                    <input
+                      type="text"
+                      required
+                      value={editTitulo}
+                      onChange={(e) => setEditTitulo(e.target.value)}
+                      className={inputClass}
+                    />
+                    <textarea
+                      value={editDescripcion}
+                      onChange={(e) => setEditDescripcion(e.target.value)}
+                      rows={2}
+                      className={inputClass}
+                    />
+                    <input
+                      type="url"
+                      required
+                      value={editUrl}
+                      onChange={(e) => setEditUrl(e.target.value)}
+                      className={inputClass}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Category (optional)"
+                      value={editCategoria}
+                      onChange={(e) => setEditCategoria(e.target.value)}
+                      className={inputClass}
+                    />
+                    <input
+                      type="url"
+                      placeholder="Icon URL (optional)"
+                      value={editIconoUrl}
+                      onChange={(e) => setEditIconoUrl(e.target.value)}
+                      className={inputClass}
+                    />
+                  </AdminEditForm>
+                </div>
+              )}
             </Reveal>
           ))}
         </div>

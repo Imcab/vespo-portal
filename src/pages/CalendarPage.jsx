@@ -3,7 +3,8 @@ import { supabase } from '../utils/supabase';
 import { useAuth } from '../hooks/useAuth';
 import Reveal from '../components/Reveal';
 import AdminAddPanel from '../components/AdminAddPanel';
-import { Calendar } from 'lucide-react';
+import AdminEditForm from '../components/AdminEditForm';
+import { Calendar, Pencil } from 'lucide-react';
 
 const TIPO_LABEL = {
   general: 'General',
@@ -51,6 +52,44 @@ export default function CalendarPage() {
   const [tipo, setTipo] = useState('general');
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editTitulo, setEditTitulo] = useState('');
+  const [editDescripcion, setEditDescripcion] = useState('');
+  const [editTipo, setEditTipo] = useState('general');
+  const [editFechaInicio, setEditFechaInicio] = useState('');
+  const [editFechaFin, setEditFechaFin] = useState('');
+
+  function startEdit(event) {
+    setEditingId(event.id);
+    setEditTitulo(event.titulo);
+    setEditDescripcion(event.descripcion || '');
+    setEditTipo(event.tipo);
+    setEditFechaInicio(event.fecha_inicio ? event.fecha_inicio.slice(0, 16) : '');
+    setEditFechaFin(event.fecha_fin ? event.fecha_fin.slice(0, 16) : '');
+  }
+
+  async function saveEdit(id) {
+    const { error } = await supabase
+      .from('eventos')
+      .update({
+        titulo: editTitulo.trim(),
+        descripcion: editDescripcion.trim() || null,
+        tipo: editTipo,
+        fecha_inicio: new Date(editFechaInicio).toISOString(),
+        fecha_fin: editFechaFin ? new Date(editFechaFin).toISOString() : null,
+      })
+      .eq('id', id);
+    if (error) throw error;
+    setEditingId(null);
+    setEvents(await loadEventsAndTasks());
+  }
+
+  async function deleteEvent(id) {
+    const { error } = await supabase.from('eventos').delete().eq('id', id);
+    if (error) throw error;
+    setEditingId(null);
+    setEvents(await loadEventsAndTasks());
+  }
 
   useEffect(() => {
     async function load() {
@@ -147,28 +186,86 @@ export default function CalendarPage() {
         <div className="flex flex-col gap-3">
           {events.map((event, i) => {
             const start = new Date(event.fecha_inicio);
+            const isRealEvent = event.tipo !== 'tarea';
             return (
-              <Reveal
-                key={event.id}
-                delay={Math.min(i, 5) * 50}
-                className="flex items-center gap-4 rounded-card bg-surface-soft p-5"
-              >
-                <div className="flex shrink-0 flex-col items-center justify-center rounded-control bg-white px-3 py-2 text-center shadow-soft-xs">
-                  <span className="text-[11px] font-medium uppercase text-brown-600">{monthFormatter.format(start)}</span>
-                  <span className="text-[18px] font-semibold text-ink">{start.getDate()}</span>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-[15px] font-semibold text-ink">{event.titulo}</h3>
-                    <span className="rounded-full bg-brand-100 px-2 py-0.5 text-[11px] font-medium text-brown-600">
-                      {TIPO_LABEL[event.tipo] || event.tipo}
+              <Reveal key={event.id} delay={Math.min(i, 5) * 50} className="rounded-card bg-surface-soft p-5">
+                <div className="flex items-center gap-4">
+                  <div className="flex shrink-0 flex-col items-center justify-center rounded-control bg-white px-3 py-2 text-center shadow-soft-xs">
+                    <span className="text-[11px] font-medium uppercase text-brown-600">
+                      {monthFormatter.format(start)}
                     </span>
+                    <span className="text-[18px] font-semibold text-ink">{start.getDate()}</span>
                   </div>
-                  <p className="mt-0.5 text-[12px] text-ink-secondary">{dateFormatter.format(start)}</p>
-                  {event.descripcion && (
-                    <p className="mt-1.5 text-[13px] leading-relaxed text-ink-secondary">{event.descripcion}</p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-[15px] font-semibold text-ink">{event.titulo}</h3>
+                      <span className="rounded-full bg-brand-100 px-2 py-0.5 text-[11px] font-medium text-brown-600">
+                        {TIPO_LABEL[event.tipo] || event.tipo}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-[12px] text-ink-secondary">{dateFormatter.format(start)}</p>
+                    {event.descripcion && (
+                      <p className="mt-1.5 text-[13px] leading-relaxed text-ink-secondary">{event.descripcion}</p>
+                    )}
+                  </div>
+                  {adminMode && isRealEvent && (
+                    <button
+                      type="button"
+                      onClick={() => startEdit(event)}
+                      className="shrink-0 rounded-control p-1 text-ink-secondary hover:bg-white hover:text-ink"
+                      aria-label="Edit event"
+                    >
+                      <Pencil size={14} strokeWidth={1.75} />
+                    </button>
                   )}
                 </div>
+
+                {editingId === event.id && (
+                  <AdminEditForm
+                    onSubmit={() => saveEdit(event.id)}
+                    onDelete={() => deleteEvent(event.id)}
+                    onCancel={() => setEditingId(null)}
+                  >
+                    <input
+                      type="text"
+                      required
+                      value={editTitulo}
+                      onChange={(e) => setEditTitulo(e.target.value)}
+                      className={inputClass}
+                    />
+                    <textarea
+                      value={editDescripcion}
+                      onChange={(e) => setEditDescripcion(e.target.value)}
+                      rows={2}
+                      className={inputClass}
+                    />
+                    <select value={editTipo} onChange={(e) => setEditTipo(e.target.value)} className={inputClass}>
+                      <option value="general">General</option>
+                      <option value="sesion">Session</option>
+                      <option value="competencia">Competition</option>
+                      <option value="entrega">Deadline</option>
+                    </select>
+                    <label className="flex flex-col gap-1.5">
+                      <span className="text-[12px] text-ink-secondary">Start</span>
+                      <input
+                        type="datetime-local"
+                        required
+                        value={editFechaInicio}
+                        onChange={(e) => setEditFechaInicio(e.target.value)}
+                        className={inputClass}
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1.5">
+                      <span className="text-[12px] text-ink-secondary">End (optional)</span>
+                      <input
+                        type="datetime-local"
+                        value={editFechaFin}
+                        onChange={(e) => setEditFechaFin(e.target.value)}
+                        className={inputClass}
+                      />
+                    </label>
+                  </AdminEditForm>
+                )}
               </Reveal>
             );
           })}

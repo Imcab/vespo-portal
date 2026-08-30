@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../utils/supabase';
+import { useAuth } from '../hooks/useAuth';
 import Reveal from '../components/Reveal';
-import { ArrowLeft, Drone, Package, Wrench, Link2, Download } from 'lucide-react';
+import AdminEditForm from '../components/AdminEditForm';
+import { ArrowLeft, Drone, Package, Wrench, Link2, Download, Pencil } from 'lucide-react';
 import { droneDisplayName } from '../utils/drone';
+
+const inputClass =
+  'rounded-control border border-line bg-white px-3.5 py-2.5 text-[14px] text-ink outline-none transition-colors duration-350 ease-emil focus:border-brown-600';
 
 function DetailSkeleton() {
   return (
@@ -23,10 +28,48 @@ function DetailSkeleton() {
 
 export default function DroneDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { adminMode } = useAuth();
   const [drone, setDrone] = useState(null);
   const [stlFiles, setStlFiles] = useState([]);
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [editNombre, setEditNombre] = useState('');
+  const [editModelo, setEditModelo] = useState('');
+  const [editDescripcion, setEditDescripcion] = useState('');
+  const [editImagenUrl, setEditImagenUrl] = useState('');
+
+  function startEdit() {
+    setEditNombre(drone.nombre);
+    setEditModelo(drone.modelo || '');
+    setEditDescripcion(drone.descripcion || '');
+    setEditImagenUrl(drone.imagen_url || '');
+    setEditing(true);
+  }
+
+  async function saveEdit() {
+    const { data, error } = await supabase
+      .from('drones')
+      .update({
+        nombre: editNombre.trim(),
+        modelo: editModelo.trim() || null,
+        descripcion: editDescripcion.trim() || null,
+        imagen_url: editImagenUrl.trim() || null,
+      })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    setDrone(data);
+    setEditing(false);
+  }
+
+  async function deleteDrone() {
+    const { error } = await supabase.from('drones').delete().eq('id', id);
+    if (error) throw error;
+    navigate('/');
+  }
 
   useEffect(() => {
     async function fetchData() {
@@ -86,14 +129,62 @@ export default function DroneDetail() {
         </Reveal>
 
         <Reveal delay={100} className="flex flex-col">
-          <h1 className="text-[36px] font-semibold leading-tight tracking-tight text-ink sm:text-[44px]">
-            {name}
-          </h1>
-          {drone.modelo && (
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="text-[36px] font-semibold leading-tight tracking-tight text-ink sm:text-[44px]">
+              {name}
+            </h1>
+            {adminMode && !editing && (
+              <button
+                type="button"
+                onClick={startEdit}
+                className="mt-2 inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-medium text-ink-secondary ring-1 ring-inset ring-line hover:text-ink"
+              >
+                <Pencil size={13} strokeWidth={1.75} />
+                Edit
+              </button>
+            )}
+          </div>
+          {drone.modelo && !editing && (
             <p className="mt-1.5 text-[17px] text-ink-secondary">{drone.modelo}</p>
           )}
-          {drone.descripcion && (
+          {drone.descripcion && !editing && (
             <p className="mt-5 text-[15px] leading-relaxed text-ink-secondary">{drone.descripcion}</p>
+          )}
+
+          {editing && (
+            <div className="mt-4 rounded-card bg-surface-soft p-5">
+              <AdminEditForm onSubmit={saveEdit} onDelete={deleteDrone} onCancel={() => setEditing(false)}>
+                <input
+                  type="text"
+                  required
+                  placeholder="Name"
+                  value={editNombre}
+                  onChange={(e) => setEditNombre(e.target.value)}
+                  className={inputClass}
+                />
+                <input
+                  type="text"
+                  placeholder="Model (optional)"
+                  value={editModelo}
+                  onChange={(e) => setEditModelo(e.target.value)}
+                  className={inputClass}
+                />
+                <textarea
+                  placeholder="Description (optional)"
+                  value={editDescripcion}
+                  onChange={(e) => setEditDescripcion(e.target.value)}
+                  rows={2}
+                  className={inputClass}
+                />
+                <input
+                  type="url"
+                  placeholder="Image URL (optional)"
+                  value={editImagenUrl}
+                  onChange={(e) => setEditImagenUrl(e.target.value)}
+                  className={inputClass}
+                />
+              </AdminEditForm>
+            </div>
           )}
 
           {drone.specs && Object.keys(drone.specs).length > 0 && (
