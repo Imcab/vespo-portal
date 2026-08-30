@@ -23,7 +23,14 @@ export default function DroneCard({ drone }) {
       </div>
 
       <div className="flex flex-1 flex-col gap-1.5 px-6 py-5">
-        <h3 className="text-[19px] font-semibold tracking-tight text-ink">{name}</h3>
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-[19px] font-semibold tracking-tight text-ink">{name}</h3>
+          {drone.simulable && (
+            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+              Simulation ready
+            </span>
+          )}
+        </div>
         {drone.modelo && (
           <p className="text-[13px] font-medium text-ink-secondary">{drone.modelo}</p>
         )}
