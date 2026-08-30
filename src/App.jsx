@@ -14,6 +14,7 @@ import Tasks from './pages/Tasks';
 import CalendarPage from './pages/CalendarPage';
 import Tools from './pages/Tools';
 import Inventory from './pages/Inventory';
+import Profile from './pages/Profile';
 
 function AppShell() {
   const { session, loading } = useAuth();
@@ -54,6 +55,7 @@ function AppShell() {
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/tools" element={<Tools />} />
             <Route path="/inventory" element={<Inventory />} />
+            <Route path="/profile" element={<Profile />} />
           </Routes>
         </main>
       </div>

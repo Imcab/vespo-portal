@@ -55,10 +55,14 @@ export default function Sidebar({ open, onClose }) {
 
         <div className="shrink-0 border-t border-line-soft px-3 py-3">
           <div className="flex flex-col gap-0.5">
-            <span className="flex items-center gap-2.5 rounded-control px-2.5 py-2 text-[13.5px] font-medium text-ink-secondary">
+            <Link
+              to="/profile"
+              onClick={onClose}
+              className="flex items-center gap-2.5 rounded-control px-2.5 py-2 text-[13.5px] font-medium text-ink-secondary transition-colors duration-350 ease-emil hover:bg-surface-soft hover:text-ink"
+            >
               <User size={16} strokeWidth={1.75} />
               <span className="truncate">{user?.email}</span>
-            </span>
+            </Link>
             <button
               type="button"
               onClick={signOut}
