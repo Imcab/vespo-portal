@@ -9,7 +9,6 @@ import DroneGallery from './pages/DroneGallery';
 import DroneDetail from './pages/DroneDetail';
 import Members from './pages/Members';
 import Areas from './pages/Areas';
-import Sessions from './pages/Sessions';
 import Tasks from './pages/Tasks';
 import CalendarPage from './pages/CalendarPage';
 import Tools from './pages/Tools';
@@ -72,7 +71,6 @@ function AppShell() {
             <Route path="/drone/:id" element={<DroneDetail />} />
             <Route path="/members" element={<Members />} />
             <Route path="/areas" element={<Areas />} />
-            <Route path="/sessions" element={<Sessions />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/tools" element={<Tools />} />

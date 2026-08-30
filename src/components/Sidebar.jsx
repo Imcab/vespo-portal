@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Users, Layers, CalendarClock, CheckSquare, Calendar, Wrench, Drone, Boxes, User, LogOut, X } from 'lucide-react';
+import { Users, Layers, CheckSquare, Calendar, Wrench, Drone, Boxes, User, LogOut, X } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import SidebarGroup from './SidebarGroup';
 import SidebarLink from './SidebarLink';
@@ -38,7 +38,6 @@ export default function Sidebar({ open, onClose }) {
           <SidebarGroup label="Community">
             <SidebarLink to="/members" icon={Users} label="Members" onNavigate={onClose} />
             <SidebarLink to="/areas" icon={Layers} label="Areas" onNavigate={onClose} />
-            <SidebarLink to="/sessions" icon={CalendarClock} label="Sessions" onNavigate={onClose} />
           </SidebarGroup>
 
           <SidebarGroup label="Work">
