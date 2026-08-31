@@ -5,7 +5,8 @@ import Reveal from '../components/Reveal';
 import AdminAddPanel from '../components/AdminAddPanel';
 import AdminEditForm from '../components/AdminEditForm';
 import MonthCalendar from '../components/MonthCalendar';
-import { Calendar, Pencil, List, CalendarDays } from 'lucide-react';
+import WeekSchedule from '../components/WeekSchedule';
+import { Calendar, Pencil, List, CalendarDays, LayoutGrid } from 'lucide-react';
 
 const TIPO_LABEL = {
   general: 'General',
@@ -59,7 +60,7 @@ export default function CalendarPage() {
   const [editTipo, setEditTipo] = useState('general');
   const [editFechaInicio, setEditFechaInicio] = useState('');
   const [editFechaFin, setEditFechaFin] = useState('');
-  const [view, setView] = useState('list');
+  const [view, setView] = useState('week');
   const [selectedDate, setSelectedDate] = useState(null);
 
   function startEdit(event) {
@@ -127,13 +128,13 @@ export default function CalendarPage() {
         <div className="flex items-center gap-1 rounded-full bg-surface-soft p-1">
           <button
             type="button"
-            onClick={() => setView('list')}
+            onClick={() => setView('week')}
             className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-medium transition-colors duration-350 ease-emil ${
-              view === 'list' ? 'bg-white text-ink shadow-soft-xs' : 'text-ink-secondary'
+              view === 'week' ? 'bg-white text-ink shadow-soft-xs' : 'text-ink-secondary'
             }`}
           >
-            <List size={14} strokeWidth={1.75} />
-            List
+            <LayoutGrid size={14} strokeWidth={1.75} />
+            Week
           </button>
           <button
             type="button"
@@ -144,6 +145,16 @@ export default function CalendarPage() {
           >
             <CalendarDays size={14} strokeWidth={1.75} />
             Month
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('list')}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-medium transition-colors duration-350 ease-emil ${
+              view === 'list' ? 'bg-white text-ink shadow-soft-xs' : 'text-ink-secondary'
+            }`}
+          >
+            <List size={14} strokeWidth={1.75} />
+            List
           </button>
         </div>
       </div>
@@ -193,6 +204,64 @@ export default function CalendarPage() {
         </AdminAddPanel>
       )}
 
+      {loading && view === 'week' && (
+        <div className="skeleton mb-8 h-96 w-full animate-shimmer rounded-card" />
+      )}
+
+      {!loading && view === 'week' && (
+        <WeekSchedule events={events} adminMode={adminMode} onSelectEvent={startEdit} />
+      )}
+
+      {!loading && view === 'week' && editingId && events.find((e) => e.id === editingId) && (
+        <div className="mb-8 rounded-card bg-surface-soft p-5">
+          <p className="mb-1 text-[13px] font-medium text-ink-secondary">Editing event</p>
+          <AdminEditForm
+            onSubmit={() => saveEdit(editingId)}
+            onDelete={() => deleteEvent(editingId)}
+            onCancel={() => setEditingId(null)}
+          >
+            <input
+              type="text"
+              required
+              value={editTitulo}
+              onChange={(e) => setEditTitulo(e.target.value)}
+              className={inputClass}
+            />
+            <textarea
+              value={editDescripcion}
+              onChange={(e) => setEditDescripcion(e.target.value)}
+              rows={2}
+              className={inputClass}
+            />
+            <select value={editTipo} onChange={(e) => setEditTipo(e.target.value)} className={inputClass}>
+              <option value="general">General</option>
+              <option value="sesion">Session</option>
+              <option value="competencia">Competition</option>
+              <option value="entrega">Deadline</option>
+            </select>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[12px] text-ink-secondary">Start</span>
+              <input
+                type="datetime-local"
+                required
+                value={editFechaInicio}
+                onChange={(e) => setEditFechaInicio(e.target.value)}
+                className={inputClass}
+              />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[12px] text-ink-secondary">End (optional)</span>
+              <input
+                type="datetime-local"
+                value={editFechaFin}
+                onChange={(e) => setEditFechaFin(e.target.value)}
+                className={inputClass}
+              />
+            </label>
+          </AdminEditForm>
+        </div>
+      )}
+
       {!loading && view === 'month' && (
         <MonthCalendar events={events} selectedDate={selectedDate} onSelectDate={setSelectedDate} />
       )}
@@ -206,7 +275,7 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {loading ? (
+      {loading && view !== 'week' ? (
         <div className="flex flex-col gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="rounded-card bg-surface-soft p-5">
@@ -214,7 +283,7 @@ export default function CalendarPage() {
             </div>
           ))}
         </div>
-      ) : (() => {
+      ) : view === 'week' ? null : (() => {
         const visibleEvents = selectedDate
           ? events.filter((e) => new Date(e.fecha_inicio).toDateString() === selectedDate.toDateString())
           : events;

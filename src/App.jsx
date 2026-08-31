@@ -14,6 +14,9 @@ import CalendarPage from './pages/CalendarPage';
 import Tools from './pages/Tools';
 import Inventory from './pages/Inventory';
 import Profile from './pages/Profile';
+import Library from './pages/Library';
+import Leaderboard from './pages/Leaderboard';
+import Achievements from './pages/Achievements';
 
 function AdminToggle() {
   const { member, adminMode, setAdminMode } = useAuth();
@@ -75,6 +78,9 @@ function AppShell() {
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/tools" element={<Tools />} />
             <Route path="/inventory" element={<Inventory />} />
+            <Route path="/library" element={<Library />} />
+            <Route path="/leaderboard" element={<Leaderboard />} />
+            <Route path="/achievements" element={<Achievements />} />
             <Route path="/profile" element={<Profile />} />
           </Routes>
         </main>
