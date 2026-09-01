@@ -7,8 +7,36 @@ import AdminEditForm from '../components/AdminEditForm';
 import IconPicker from '../components/IconPicker';
 import ColorSwatchPicker from '../components/ColorSwatchPicker';
 import AchievementBadge from '../components/AchievementBadge';
+import Modal from '../components/Modal';
 import { RARITY_LABEL, RARITY_COLOR } from '../utils/rarity';
-import { Award, Search, Settings2, Flame, Minus, Pencil, ScrollText } from 'lucide-react';
+import { Award, Search, Settings2, Flame, Minus, Pencil, ScrollText, Info } from 'lucide-react';
+
+function initials(name) {
+  return (name || '')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase())
+    .join('');
+}
+
+function MemberAvatar({ member, size = 24 }) {
+  return member.foto_url ? (
+    <img
+      src={member.foto_url}
+      alt={member.nombre}
+      className="shrink-0 rounded-full object-cover"
+      style={{ width: size, height: size }}
+    />
+  ) : (
+    <span
+      className="flex shrink-0 items-center justify-center rounded-full bg-brand-100 font-semibold text-brown-600"
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.42) }}
+    >
+      {initials(member.nombre)}
+    </span>
+  );
+}
 
 const inputClass =
   'rounded-control border border-line bg-white px-3.5 py-2.5 text-[14px] text-ink outline-none transition-colors duration-350 ease-emil focus:border-brown-600';
@@ -173,6 +201,19 @@ export default function Achievements() {
   const [logLoadingMore, setLogLoadingMore] = useState(false);
   const [logHasMore, setLogHasMore] = useState(true);
 
+  const [detailLogro, setDetailLogro] = useState(null);
+  const [detailHolderIds, setDetailHolderIds] = useState(new Set());
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  async function openAchievementDetail(logro) {
+    setDetailLogro(logro);
+    setDetailLoading(true);
+    const { data, error } = await supabase.from('miembro_logros').select('miembro_id').eq('logro_id', logro.id);
+    if (error) console.error('Error:', error);
+    setDetailHolderIds(new Set((data || []).map((row) => row.miembro_id)));
+    setDetailLoading(false);
+  }
+
   async function fetchLogros() {
     const { data, error } = await supabase
       .from('logros')
@@ -240,7 +281,7 @@ export default function Achievements() {
           .then(({ data }) => setAreas(data || [])),
         supabase
           .from('miembros')
-          .select('id, nombre')
+          .select('id, nombre, foto_url')
           .eq('activo', true)
           .order('nombre')
           .then(({ data }) => setMembers(data || [])),
@@ -595,6 +636,15 @@ export default function Achievements() {
                   </p>
                 )}
 
+                <button
+                  type="button"
+                  onClick={() => openAchievementDetail(logro)}
+                  className="mt-3 inline-flex items-center gap-1 text-[12px] font-medium text-brown-600 hover:opacity-70"
+                >
+                  <Info size={13} strokeWidth={2} />
+                  See more
+                </button>
+
                 {adminMode && managingId === logro.id && (
                   <div className="mt-4 flex flex-col gap-3 border-t border-line-soft pt-3">
                     <div className="flex flex-wrap items-center gap-2">
@@ -777,6 +827,96 @@ export default function Achievements() {
           </>
         )}
       </div>
+
+      <Modal open={!!detailLogro} onClose={() => setDetailLogro(null)} title={detailLogro?.nombre}>
+        {detailLogro &&
+          (() => {
+            const total = members.length;
+            const holders = members
+              .filter((m) => detailHolderIds.has(m.id))
+              .sort((a, b) => a.nombre.localeCompare(b.nombre));
+            const nonHolders = members
+              .filter((m) => !detailHolderIds.has(m.id))
+              .sort((a, b) => a.nombre.localeCompare(b.nombre));
+            const pct = total > 0 ? ((detailHolderIds.size / total) * 100).toFixed(1) : '0.0';
+
+            return (
+              <div className="flex flex-col gap-5">
+                <div className="flex items-center gap-3">
+                  <AchievementBadge
+                    icono={detailLogro.icono}
+                    color={detailLogro.color}
+                    locked={false}
+                    size={48}
+                    nivel={detailLogro.nivel}
+                  />
+                  <div>
+                    <p className="text-[13px] text-ink-secondary">
+                      {detailLogro.puntos} pts
+                      {detailLogro.nivel && (
+                        <>
+                          {' · '}
+                          <span style={{ color: RARITY_COLOR[detailLogro.nivel] }}>
+                            {RARITY_LABEL[detailLogro.nivel]}
+                          </span>
+                        </>
+                      )}
+                    </p>
+                    {detailLoading ? (
+                      <p className="text-[13px] text-ink-secondary">Loading…</p>
+                    ) : (
+                      <p className="text-[13px] font-medium text-ink">
+                        Earned by {pct}% of members ({detailHolderIds.size}/{total})
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {!detailLoading && (
+                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                    <div>
+                      <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-secondary">
+                        Has it ({holders.length})
+                      </h4>
+                      <div className="flex max-h-64 flex-col gap-1.5 overflow-y-auto pr-1">
+                        {holders.length === 0 ? (
+                          <p className="text-[12.5px] italic text-ink-tertiary">No one yet.</p>
+                        ) : (
+                          holders.map((m) => (
+                            <div
+                              key={m.id}
+                              className="flex items-center gap-2 rounded-control bg-surface-soft px-2.5 py-1.5"
+                            >
+                              <MemberAvatar member={m} />
+                              <span className="truncate text-[13px] text-ink">{m.nombre}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-secondary">
+                        Doesn't have it ({nonHolders.length})
+                      </h4>
+                      <div className="flex max-h-64 flex-col gap-1.5 overflow-y-auto pr-1">
+                        {nonHolders.length === 0 ? (
+                          <p className="text-[12.5px] italic text-ink-tertiary">Everyone has it!</p>
+                        ) : (
+                          nonHolders.map((m) => (
+                            <div key={m.id} className="flex items-center gap-2 rounded-control px-2.5 py-1.5 opacity-60">
+                              <MemberAvatar member={m} />
+                              <span className="truncate text-[13px] text-ink-secondary">{m.nombre}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+      </Modal>
     </div>
   );
 }

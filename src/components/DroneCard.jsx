@@ -30,6 +30,11 @@ export default function DroneCard({ drone }) {
               Simulable
             </span>
           )}
+          {drone.es_real === false && (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+              Simulation only
+            </span>
+          )}
         </div>
         {drone.modelo && (
           <p className="text-[13px] font-medium text-ink-secondary">{drone.modelo}</p>

@@ -7,13 +7,44 @@ import AdminAddPanel from '../components/AdminAddPanel';
 import AdminEditForm from '../components/AdminEditForm';
 import ResourceIcon from '../components/ResourceIcon';
 import Toggle from '../components/Toggle';
-import { ArrowLeft, Drone, Package, Wrench, Download, Pencil, Plus, X, FileCog } from 'lucide-react';
+import { ArrowLeft, Drone, Package, Wrench, Download, Pencil, Plus, X, FileCog, GitFork, ExternalLink } from 'lucide-react';
 import { droneDisplayName } from '../utils/drone';
 
 const inputClass =
   'rounded-control border border-line bg-white px-3.5 py-2.5 text-[14px] text-ink outline-none transition-colors duration-350 ease-emil focus:border-brown-600';
 
 const emptyStlForm = { nombre: '', descripcion: '', archivoUrl: '' };
+const emptyRepoForm = { nombre: '', url: '', descripcion: '' };
+
+function RepoFields({ form, setForm }) {
+  return (
+    <>
+      <input
+        type="text"
+        required
+        placeholder="Project name"
+        value={form.nombre}
+        onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+        className={inputClass}
+      />
+      <input
+        type="url"
+        required
+        placeholder="GitHub URL (https://github.com/…)"
+        value={form.url}
+        onChange={(e) => setForm({ ...form, url: e.target.value })}
+        className={inputClass}
+      />
+      <textarea
+        placeholder="Description (optional)"
+        value={form.descripcion}
+        onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
+        rows={2}
+        className={inputClass}
+      />
+    </>
+  );
+}
 
 function DetailSkeleton() {
   return (
@@ -68,6 +99,7 @@ export default function DroneDetail() {
   const [drone, setDrone] = useState(null);
   const [stlFiles, setStlFiles] = useState([]);
   const [resources, setResources] = useState([]);
+  const [repos, setRepos] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [editing, setEditing] = useState(false);
@@ -76,11 +108,16 @@ export default function DroneDetail() {
   const [editDescripcion, setEditDescripcion] = useState('');
   const [editImagenUrl, setEditImagenUrl] = useState('');
   const [editSimulable, setEditSimulable] = useState(false);
+  const [editEsReal, setEditEsReal] = useState(true);
   const [editSpecs, setEditSpecs] = useState([]);
 
   const [stlAddForm, setStlAddForm] = useState(emptyStlForm);
   const [editingStlId, setEditingStlId] = useState(null);
   const [stlEditForm, setStlEditForm] = useState(emptyStlForm);
+
+  const [repoAddForm, setRepoAddForm] = useState(emptyRepoForm);
+  const [editingRepoId, setEditingRepoId] = useState(null);
+  const [repoEditForm, setRepoEditForm] = useState(emptyRepoForm);
 
   function startEdit() {
     setEditNombre(drone.nombre);
@@ -88,6 +125,7 @@ export default function DroneDetail() {
     setEditDescripcion(drone.descripcion || '');
     setEditImagenUrl(drone.imagen_url || '');
     setEditSimulable(drone.simulable);
+    setEditEsReal(drone.es_real);
     setEditSpecs(Object.entries(drone.specs || {}).map(([key, value]) => ({ key, value: String(value) })));
     setEditing(true);
   }
@@ -114,6 +152,7 @@ export default function DroneDetail() {
         descripcion: editDescripcion.trim() || null,
         imagen_url: editImagenUrl.trim() || null,
         simulable: editSimulable,
+        es_real: editEsReal,
         specs: Object.keys(specs).length > 0 ? specs : null,
       })
       .eq('id', id)
@@ -177,6 +216,53 @@ export default function DroneDetail() {
     fetchStlFiles();
   }
 
+  async function fetchRepos() {
+    const { data } = await supabase.from('dron_repos').select('*').eq('dron_id', id).order('created_at');
+    setRepos(data || []);
+  }
+
+  async function handleAddRepo() {
+    const { error } = await supabase.from('dron_repos').insert({
+      dron_id: id,
+      nombre: repoAddForm.nombre.trim(),
+      url: repoAddForm.url.trim(),
+      descripcion: repoAddForm.descripcion.trim() || null,
+    });
+    if (error) throw error;
+    setRepoAddForm(emptyRepoForm);
+    fetchRepos();
+  }
+
+  function startEditRepo(repo) {
+    setEditingRepoId(repo.id);
+    setRepoEditForm({
+      nombre: repo.nombre,
+      url: repo.url,
+      descripcion: repo.descripcion || '',
+    });
+  }
+
+  async function saveEditRepo(repoId) {
+    const { error } = await supabase
+      .from('dron_repos')
+      .update({
+        nombre: repoEditForm.nombre.trim(),
+        url: repoEditForm.url.trim(),
+        descripcion: repoEditForm.descripcion.trim() || null,
+      })
+      .eq('id', repoId);
+    if (error) throw error;
+    setEditingRepoId(null);
+    fetchRepos();
+  }
+
+  async function deleteRepo(repoId) {
+    const { error } = await supabase.from('dron_repos').delete().eq('id', repoId);
+    if (error) throw error;
+    setEditingRepoId(null);
+    fetchRepos();
+  }
+
   useEffect(() => {
     async function fetchData() {
       const { data: droneData } = await supabase.from('drones').select('*').eq('id', id).single();
@@ -185,10 +271,12 @@ export default function DroneDetail() {
         .from('recurso_drones')
         .select('recursos(*)')
         .eq('dron_id', id);
+      const { data: repoRows } = await supabase.from('dron_repos').select('*').eq('dron_id', id).order('created_at');
 
       setDrone(droneData);
       setStlFiles(stls || []);
       setResources((links || []).map((link) => link.recursos).filter(Boolean));
+      setRepos(repoRows || []);
       setLoading(false);
     }
     fetchData();
@@ -238,15 +326,26 @@ export default function DroneDetail() {
               <h1 className="text-[36px] font-semibold leading-tight tracking-tight text-ink sm:text-[44px]">
                 {name}
               </h1>
-              <span
-                className={`mt-2 inline-block rounded-full px-2.5 py-1 text-[11px] font-medium ${
-                  drone.simulable
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'bg-surface-soft text-ink-secondary'
-                }`}
-              >
-                {drone.simulable ? 'Simulable' : 'Not simulable'}
-              </span>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span
+                  className={`inline-block rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                    drone.simulable
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'bg-surface-soft text-ink-secondary'
+                  }`}
+                >
+                  {drone.simulable ? 'Simulable' : 'Not simulable'}
+                </span>
+                <span
+                  className={`inline-block rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                    drone.es_real
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-amber-100 text-amber-700'
+                  }`}
+                >
+                  {drone.es_real ? 'Real drone' : 'Simulation only'}
+                </span>
+              </div>
             </div>
             {adminMode && !editing && (
               <button
@@ -298,6 +397,7 @@ export default function DroneDetail() {
                 />
 
                 <Toggle checked={editSimulable} onChange={setEditSimulable} label="Available in simulation" />
+                <Toggle checked={editEsReal} onChange={setEditEsReal} label="Physical drone (not simulation-only)" />
 
                 <div className="flex flex-col gap-1.5">
                   <span className="text-[12px] text-ink-secondary">Specifications</span>
@@ -462,6 +562,76 @@ export default function DroneDetail() {
                   )}
                 </div>
               </a>
+            ))}
+          </div>
+        )}
+      </Reveal>
+
+      <Reveal as="section" className="mb-4 mt-16">
+        <div className="mb-5 flex items-center gap-2">
+          <GitFork size={19} strokeWidth={1.75} className="text-ink" />
+          <h2 className="text-[20px] font-semibold tracking-tight text-ink">Projects</h2>
+        </div>
+
+        {adminMode && (
+          <AdminAddPanel label="Add project" onSubmit={handleAddRepo} submitLabel="Add project">
+            <RepoFields form={repoAddForm} setForm={setRepoAddForm} />
+          </AdminAddPanel>
+        )}
+
+        {repos.length === 0 ? (
+          <p className="rounded-card bg-surface-soft px-6 py-10 text-center text-[14px] text-ink-secondary">
+            No GitHub projects linked yet.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {repos.map((repo) => (
+              <div key={repo.id} className="rounded-card bg-surface-soft p-5">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-control bg-brand-100 text-brown-600">
+                      <GitFork size={16} strokeWidth={1.75} />
+                    </span>
+                    <div className="min-w-0">
+                      <h4 className="truncate text-[15px] font-semibold text-ink">{repo.nombre}</h4>
+                      {repo.descripcion && (
+                        <p className="mt-0.5 truncate text-[13px] text-ink-secondary">{repo.descripcion}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <a
+                      href={repo.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-[13px] font-medium text-white transition-[background-color,transform] duration-350 ease-emil hover:bg-ink/90 active:scale-[0.97]"
+                    >
+                      <ExternalLink size={14} strokeWidth={2} />
+                      Open
+                    </a>
+                    {adminMode && (
+                      <button
+                        type="button"
+                        onClick={() => startEditRepo(repo)}
+                        className="rounded-control p-1.5 text-ink-secondary hover:bg-white hover:text-ink"
+                        aria-label="Edit project"
+                      >
+                        <Pencil size={14} strokeWidth={1.75} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {editingRepoId === repo.id && (
+                  <AdminEditForm
+                    onSubmit={() => saveEditRepo(repo.id)}
+                    onDelete={() => deleteRepo(repo.id)}
+                    onCancel={() => setEditingRepoId(null)}
+                  >
+                    <RepoFields form={repoEditForm} setForm={setRepoEditForm} />
+                  </AdminEditForm>
+                )}
+              </div>
             ))}
           </div>
         )}

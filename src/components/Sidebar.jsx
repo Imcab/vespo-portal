@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, Layers, CheckSquare, Calendar, Wrench, Drone, Boxes, User, LogOut, X, BookOpen, Trophy, Award, Gift, Kanban } from 'lucide-react';
+import { Users, Layers, CheckSquare, Calendar, Wrench, Drone, Boxes, User, LogOut, X, BookOpen, Trophy, Award, Gift, Kanban, GraduationCap } from 'lucide-react';
 import { supabase } from '../utils/supabase';
 import { useAuth } from '../hooks/useAuth';
 import SidebarGroup from './SidebarGroup';
@@ -60,6 +60,7 @@ export default function Sidebar({ open, onClose }) {
             <SidebarLink to="/calendar" icon={Calendar} label="Calendar" onNavigate={onClose} />
             <SidebarLink to="/tools" icon={Wrench} label="Tools" onNavigate={onClose} />
             <SidebarLink to="/library" icon={BookOpen} label="Library" onNavigate={onClose} />
+            <SidebarLink to="/learning-center" icon={GraduationCap} label="Learning Center" onNavigate={onClose} />
           </SidebarGroup>
 
           <SidebarGroup label="Recognition">

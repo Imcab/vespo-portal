@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabase';
+import { useAuth } from '../hooks/useAuth';
 import Reveal from '../components/Reveal';
-import { Trophy } from 'lucide-react';
+import { downloadLeaderboardPng } from '../utils/leaderboardImage';
+import { Trophy, ImageDown } from 'lucide-react';
 
 function initials(name) {
   return (name || '')
@@ -23,10 +25,21 @@ function Avatar({ member }) {
 }
 
 export default function Leaderboard() {
+  const { adminMode } = useAuth();
   const [mode, setMode] = useState('points');
   const [pointsRanking, setPointsRanking] = useState([]);
   const [effortRanking, setEffortRanking] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+
+  async function handleDownloadPng() {
+    setDownloading(true);
+    try {
+      await downloadLeaderboardPng(pointsRanking.slice(0, 3));
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   useEffect(() => {
     async function load() {
@@ -56,7 +69,20 @@ export default function Leaderboard() {
 
   return (
     <div className="mx-auto max-w-4xl px-5 py-12 sm:px-8 sm:py-16">
-      <h1 className="mb-6 text-[22px] font-semibold tracking-tight text-ink">Leaderboard</h1>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-[22px] font-semibold tracking-tight text-ink">Leaderboard</h1>
+        {adminMode && !loading && pointsRanking.length > 0 && (
+          <button
+            type="button"
+            onClick={handleDownloadPng}
+            disabled={downloading}
+            className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12.5px] font-medium text-ink-secondary ring-1 ring-inset ring-line transition-colors duration-350 ease-emil hover:text-ink disabled:opacity-60"
+          >
+            <ImageDown size={14} strokeWidth={1.75} />
+            {downloading ? 'Generating…' : 'Download PNG (top 3)'}
+          </button>
+        )}
+      </div>
 
       <div className="mb-8 inline-flex items-center gap-1 rounded-full bg-surface-soft p-1">
         <button

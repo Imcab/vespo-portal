@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import DroneCard from '../components/DroneCard';
 import Reveal from '../components/Reveal';
 import AdminAddPanel from '../components/AdminAddPanel';
+import Toggle from '../components/Toggle';
 import { Drone } from 'lucide-react';
 
 const inputClass =
@@ -30,6 +31,7 @@ export default function DroneGallery() {
   const [modelo, setModelo] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [imagenUrl, setImagenUrl] = useState('');
+  const [esReal, setEsReal] = useState(true);
 
   useEffect(() => {
     async function loadDrones() {
@@ -51,12 +53,14 @@ export default function DroneGallery() {
       modelo: modelo.trim() || null,
       descripcion: descripcion.trim() || null,
       imagen_url: imagenUrl.trim() || null,
+      es_real: esReal,
     });
     if (error) throw error;
     setNombre('');
     setModelo('');
     setDescripcion('');
     setImagenUrl('');
+    setEsReal(true);
 
     const { data } = await supabase
       .from('drones')
@@ -108,6 +112,7 @@ export default function DroneGallery() {
             onChange={(e) => setImagenUrl(e.target.value)}
             className={inputClass}
           />
+          <Toggle checked={esReal} onChange={setEsReal} label="Physical drone (not simulation-only)" />
         </AdminAddPanel>
       )}
 

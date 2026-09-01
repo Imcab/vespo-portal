@@ -79,7 +79,7 @@ export default function Lootbox() {
     return map;
   }, [pulls]);
 
-  const nextAvailable = pulls[0] ? new Date(new Date(pulls[0].created_at).getTime() + 24 * 60 * 60 * 1000) : null;
+  const nextAvailable = pulls[0] ? new Date(new Date(pulls[0].created_at).getTime() + 6 * 60 * 60 * 1000) : null;
   const cooldown = nextAvailable && nextAvailable.getTime() - now > 0 ? timeUntil(nextAvailable) : null;
 
   async function spinFiller(durationMs) {
@@ -134,7 +134,7 @@ export default function Lootbox() {
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-[22px] font-semibold tracking-tight text-ink">Lootbox</h1>
-          <p className="mt-1 text-[13px] text-ink-secondary">One free pull every 24 hours. Better rarities pay more.</p>
+          <p className="mt-1 text-[13px] text-ink-secondary">One free pull every 6 hours. Better rarities pay more.</p>
         </div>
         {!loading && (
           <div className="flex items-center gap-4">
