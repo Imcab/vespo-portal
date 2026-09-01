@@ -3,7 +3,10 @@ import { supabase } from '../utils/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { getWeekStart } from '../utils/week';
 import { compressImage, ACCEPTED_IMAGE_TYPES } from '../utils/image';
-import { Camera, Pencil } from 'lucide-react';
+import AchievementBadge from '../components/AchievementBadge';
+import { Camera, Pencil, Coins } from 'lucide-react';
+
+const MAX_FEATURED_BADGES = 3;
 
 const PROFILE_FIELDS = [
   { key: 'foto_url', label: 'Profile photo' },
@@ -90,6 +93,12 @@ export default function Profile() {
   const [culturaFrase, setCulturaFrase] = useState('');
   const [personalidad, setPersonalidad] = useState('');
 
+  const [myAchievements, setMyAchievements] = useState([]);
+  const [editingBadges, setEditingBadges] = useState(false);
+  const [selectedBadges, setSelectedBadges] = useState([]);
+  const [badgesSaving, setBadgesSaving] = useState(false);
+  const [badgesMessage, setBadgesMessage] = useState('');
+
   const [avanzando, setAvanzando] = useState('');
   const [fallando, setFallando] = useState('');
   const [aprendiendo, setAprendiendo] = useState('');
@@ -129,6 +138,44 @@ export default function Profile() {
       .order('nombre')
       .then(({ data }) => setAreas(data || []));
   }, []);
+
+  useEffect(() => {
+    if (!member) return;
+    supabase
+      .from('miembro_logros')
+      .select('logro_id, logros(id, nombre, icono, color, nivel, tipo)')
+      .eq('miembro_id', member.id)
+      .then(({ data }) => {
+        const byId = new Map();
+        (data || []).forEach((row) => {
+          if (row.logros && !['lootbox', 'task', 'board'].includes(row.logros.tipo)) byId.set(row.logro_id, row.logros);
+        });
+        setMyAchievements(Array.from(byId.values()));
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [member?.id]);
+
+  function startEditBadges() {
+    setSelectedBadges(member.logros_destacados || []);
+    setBadgesMessage('');
+    setEditingBadges(true);
+  }
+
+  function toggleBadge(id) {
+    setSelectedBadges((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= MAX_FEATURED_BADGES) return prev;
+      return [...prev, id];
+    });
+  }
+
+  async function saveBadges(e) {
+    e.preventDefault();
+    setBadgesSaving(true);
+    setBadgesMessage('');
+    await updateMember({ logros_destacados: selectedBadges }, () => setEditingBadges(false));
+    setBadgesSaving(false);
+  }
 
   useEffect(() => {
     if (!member) return;
@@ -361,6 +408,11 @@ export default function Profile() {
         <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
           <span className="text-[26px] font-semibold leading-none text-ink">{member.puntaje ?? 0}</span>
           <span className="text-[11px] uppercase tracking-wide text-ink-secondary">points</span>
+          <span className="mt-1 flex items-center gap-1 text-[14px] font-semibold leading-none text-brown-600">
+            <Coins size={13} strokeWidth={2} />
+            {member.monedas ?? 0}
+          </span>
+          <span className="text-[11px] uppercase tracking-wide text-ink-secondary">coins</span>
           <button
             type="button"
             onClick={editingIdentity ? () => setEditingIdentity(false) : startEditIdentity}
@@ -370,6 +422,77 @@ export default function Profile() {
           </button>
         </div>
       </div>
+
+      <section className="mb-10">
+        <SectionHeader title="Featured achievements" onEdit={editingBadges ? () => setEditingBadges(false) : startEditBadges} />
+        {editingBadges ? (
+          <form onSubmit={saveBadges} className="flex flex-col gap-3 rounded-card bg-surface-soft p-5">
+            {myAchievements.length === 0 ? (
+              <p className="text-[13.5px] italic text-ink-tertiary">Unlock an achievement first to feature it here.</p>
+            ) : (
+              <>
+                <p className="text-[12px] text-ink-secondary">
+                  Pick up to {MAX_FEATURED_BADGES} to show on your profile ({selectedBadges.length}/{MAX_FEATURED_BADGES}).
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {myAchievements.map((a) => {
+                    const checked = selectedBadges.includes(a.id);
+                    return (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => toggleBadge(a.id)}
+                        className={`inline-flex items-center gap-2 rounded-full py-1.5 pl-1.5 pr-3 text-[12.5px] font-medium transition-colors duration-350 ease-emil ${
+                          checked
+                            ? 'bg-brand-100 text-brown-600'
+                            : 'bg-white text-ink-secondary ring-1 ring-inset ring-line'
+                        }`}
+                      >
+                        <AchievementBadge icono={a.icono} color={a.color} locked={false} nivel={a.nivel} size={24} />
+                        {a.nombre}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+            {badgesMessage && <p className="text-[13px] text-ink-secondary">{badgesMessage}</p>}
+            <div className="flex items-center gap-2">
+              <button
+                type="submit"
+                disabled={badgesSaving}
+                className="inline-flex items-center justify-center rounded-full bg-brand-500 px-4 py-1.5 text-[12.5px] font-medium text-ink transition-colors duration-350 ease-emil hover:bg-brand-600 disabled:opacity-60"
+              >
+                {badgesSaving ? 'Saving…' : 'Save'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditingBadges(false)}
+                className="text-[12.5px] font-medium text-ink-secondary hover:text-ink"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (() => {
+          const featured = (member.logros_destacados || [])
+            .map((id) => myAchievements.find((a) => a.id === id))
+            .filter(Boolean);
+          if (featured.length === 0) {
+            return <p className="text-[13.5px] italic text-ink-tertiary">No featured achievements yet.</p>;
+          }
+          return (
+            <div className="flex flex-wrap gap-5">
+              {featured.map((a) => (
+                <div key={a.id} className="flex w-16 flex-col items-center gap-1.5 text-center">
+                  <AchievementBadge icono={a.icono} color={a.color} locked={false} nivel={a.nivel} size={56} />
+                  <span className="text-[11px] leading-tight text-ink-secondary">{a.nombre}</span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+      </section>
 
       {(() => {
         const missing = PROFILE_FIELDS.filter((f) => {

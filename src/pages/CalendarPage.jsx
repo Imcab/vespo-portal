@@ -25,8 +25,8 @@ async function loadEventsAndTasks() {
     supabase.from('eventos').select('*').order('fecha_inicio', { ascending: true }),
     supabase
       .from('tareas')
-      .select('id, titulo, descripcion, fecha_limite')
-      .eq('aprobada', true)
+      .select('id, titulo, descripcion, fecha_limite, tarea_asignados!inner(aprobada)')
+      .eq('tarea_asignados.aprobada', true)
       .not('fecha_limite', 'is', null),
   ]);
   if (eventosError) console.error('Error:', eventosError);

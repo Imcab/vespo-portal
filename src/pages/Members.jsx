@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../utils/supabase';
 import Reveal from '../components/Reveal';
-import { Users } from 'lucide-react';
+import { Users, ArrowRight } from 'lucide-react';
 
 function initials(name) {
   return name
@@ -58,40 +59,45 @@ export default function Members() {
       ) : (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {members.map((member, i) => (
-            <Reveal
-              key={member.id}
-              delay={Math.min(i, 5) * 60}
-              className="flex items-center gap-3 rounded-card bg-surface-soft p-5"
-            >
-              {member.foto_url ? (
-                <img
-                  src={member.foto_url}
-                  alt={member.nombre}
-                  className="h-12 w-12 shrink-0 rounded-full object-cover"
-                />
-              ) : (
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-100 text-[14px] font-semibold text-brown-600">
-                  {initials(member.nombre)}
-                </span>
-              )}
-              <div className="min-w-0 flex-1">
-                <h3 className="truncate text-[15px] font-semibold text-ink">{member.nombre}</h3>
-                {member.rol && <p className="truncate text-[13px] text-ink-secondary">{member.rol}</p>}
-              </div>
-              {member.miembro_areas?.length > 0 && (
-                <div className="flex shrink-0 items-center gap-1">
-                  {member.miembro_areas.map(({ areas: area }, idx) =>
-                    area ? (
-                      <span
-                        key={idx}
-                        title={area.nombre}
-                        className="h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: area.color || '#6c450e' }}
-                      />
-                    ) : null,
-                  )}
+            <Reveal key={member.id} delay={Math.min(i, 5) * 60} className="rounded-card bg-surface-soft p-5">
+              <div className="flex items-center gap-3">
+                {member.foto_url ? (
+                  <img
+                    src={member.foto_url}
+                    alt={member.nombre}
+                    className="h-12 w-12 shrink-0 rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-100 text-[14px] font-semibold text-brown-600">
+                    {initials(member.nombre)}
+                  </span>
+                )}
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate text-[15px] font-semibold text-ink">{member.nombre}</h3>
+                  {member.rol && <p className="truncate text-[13px] text-ink-secondary">{member.rol}</p>}
                 </div>
-              )}
+                {member.miembro_areas?.length > 0 && (
+                  <div className="flex shrink-0 items-center gap-1">
+                    {member.miembro_areas.map(({ areas: area }, idx) =>
+                      area ? (
+                        <span
+                          key={idx}
+                          title={area.nombre}
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: area.color || '#6c450e' }}
+                        />
+                      ) : null,
+                    )}
+                  </div>
+                )}
+              </div>
+              <Link
+                to={`/members/${member.id}`}
+                className="mt-4 inline-flex items-center gap-1 text-[12.5px] font-medium text-brown-600 transition-opacity duration-350 ease-emil hover:opacity-70"
+              >
+                View profile
+                <ArrowRight size={13} strokeWidth={2} />
+              </Link>
             </Reveal>
           ))}
         </div>

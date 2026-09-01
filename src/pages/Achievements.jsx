@@ -8,7 +8,7 @@ import IconPicker from '../components/IconPicker';
 import ColorSwatchPicker from '../components/ColorSwatchPicker';
 import AchievementBadge from '../components/AchievementBadge';
 import { RARITY_LABEL, RARITY_COLOR } from '../utils/rarity';
-import { Award, Search, Settings2, Flame, Minus, Pencil } from 'lucide-react';
+import { Award, Search, Settings2, Flame, Minus, Pencil, ScrollText } from 'lucide-react';
 
 const inputClass =
   'rounded-control border border-line bg-white px-3.5 py-2.5 text-[14px] text-ink outline-none transition-colors duration-350 ease-emil focus:border-brown-600';
@@ -23,6 +23,16 @@ const emptyForm = {
   nivel: 'common',
   esGlobal: true,
   areaIds: [],
+};
+
+const LOG_PAGE_SIZE = 25;
+const LOG_TYPE_LABEL = {
+  manual: 'Award',
+  automatico: 'Automatic',
+  daily: 'Daily',
+  lootbox: 'Lootbox',
+  task: 'Task',
+  board: 'Board',
 };
 
 function timeUntil(date) {
@@ -158,10 +168,16 @@ export default function Achievements() {
   const [claiming, setClaiming] = useState(false);
   const [claimMessage, setClaimMessage] = useState('');
 
+  const [log, setLog] = useState([]);
+  const [logLoading, setLogLoading] = useState(true);
+  const [logLoadingMore, setLogLoadingMore] = useState(false);
+  const [logHasMore, setLogHasMore] = useState(true);
+
   async function fetchLogros() {
     const { data, error } = await supabase
       .from('logros')
       .select('*, logro_areas(area_id, areas(id, nombre, color))')
+      .in('tipo', ['manual', 'automatico', 'daily'])
       .order('nombre');
     if (error) console.error('Error:', error);
     setLogros(data || []);
@@ -192,6 +208,27 @@ export default function Achievements() {
     setGrantsByLogro(map);
   }
 
+  // Global achievement activity feed — visible to every member, not just admins.
+  async function fetchLog(offset = 0) {
+    const { data, error } = await supabase
+      .from('miembro_logros')
+      .select(
+        'id, puntos, nota, created_at, logros(nombre, icono, color, tipo), miembro:miembros!miembro_logros_miembro_id_fkey(nombre, foto_url), otorgante:miembros!miembro_logros_otorgado_por_fkey(nombre)',
+      )
+      .order('created_at', { ascending: false })
+      .range(offset, offset + LOG_PAGE_SIZE - 1);
+    if (error) console.error('Error:', error);
+    const rows = data || [];
+    setLogHasMore(rows.length === LOG_PAGE_SIZE);
+    setLog((prev) => (offset === 0 ? rows : [...prev, ...rows]));
+  }
+
+  async function loadMoreLog() {
+    setLogLoadingMore(true);
+    await fetchLog(log.length);
+    setLogLoadingMore(false);
+  }
+
   useEffect(() => {
     async function load() {
       await Promise.all([
@@ -207,6 +244,7 @@ export default function Achievements() {
           .eq('activo', true)
           .order('nombre')
           .then(({ data }) => setMembers(data || [])),
+        fetchLog(0).then(() => setLogLoading(false)),
       ]);
       setLoading(false);
     }
@@ -254,6 +292,7 @@ export default function Achievements() {
       if (data?.claimed) {
         setClaimMessage(`+${data.points} points! Come back tomorrow.`);
         await fetchMyGrants();
+        await fetchLog(0);
         await refreshMember();
       } else {
         setClaimMessage('Already claimed today — come back later.');
@@ -340,6 +379,7 @@ export default function Achievements() {
     setGrantMemberId('');
     setGrantNote('');
     await fetchAllGrants();
+    await fetchLog(0);
     if (grantedToMe) {
       await fetchMyGrants();
       refreshMember();
@@ -352,6 +392,7 @@ export default function Achievements() {
     const { error } = await supabase.from('miembro_logros').delete().eq('id', latest.id);
     if (error) throw error;
     await fetchAllGrants();
+    await fetchLog(0);
     if (group.miembroId === member.id) {
       await fetchMyGrants();
       refreshMember();
@@ -659,6 +700,83 @@ export default function Achievements() {
           })}
         </div>
       )}
+
+      <div className="mt-14">
+        <div className="mb-4 flex items-center gap-2">
+          <ScrollText size={17} strokeWidth={1.75} className="text-ink-tertiary" />
+          <h2 className="text-[15px] font-semibold text-ink">Achievement log</h2>
+        </div>
+
+        {logLoading ? (
+          <div className="flex flex-col gap-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="skeleton h-12 w-full animate-shimmer rounded-card" />
+            ))}
+          </div>
+        ) : log.length === 0 ? (
+          <div className="rounded-card bg-surface-soft px-6 py-16 text-center">
+            <p className="text-[13.5px] text-ink-secondary">No achievements have been awarded yet.</p>
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto rounded-card bg-surface-soft">
+              <table className="w-full min-w-[820px] text-left text-[13px]">
+                <thead>
+                  <tr className="border-b border-line-soft text-[11px] uppercase tracking-wide text-ink-secondary">
+                    <th className="px-4 py-3 font-medium">When</th>
+                    <th className="px-4 py-3 font-medium">Member</th>
+                    <th className="px-4 py-3 font-medium">Achievement</th>
+                    <th className="px-4 py-3 font-medium">Points</th>
+                    <th className="px-4 py-3 font-medium">Awarded by</th>
+                    <th className="px-4 py-3 font-medium">Note</th>
+                    <th className="px-4 py-3 font-medium">Type</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {log.map((row) => (
+                    <tr key={row.id} className="border-b border-line-soft last:border-0">
+                      <td className="whitespace-nowrap px-4 py-3 text-ink-secondary">
+                        {new Date(row.created_at).toLocaleString(undefined, {
+                          day: 'numeric',
+                          month: 'short',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        })}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 font-medium text-ink">{row.miembro?.nombre || 'Unknown'}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <AchievementBadge icono={row.logros?.icono} color={row.logros?.color} locked={false} size={26} />
+                          <span className="whitespace-nowrap text-ink">{row.logros?.nombre || 'Unknown'}</span>
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 font-semibold text-green-600">+{row.puntos}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-ink-secondary">{row.otorgante?.nombre || 'System'}</td>
+                      <td className="max-w-[220px] truncate px-4 py-3 text-ink-secondary" title={row.nota || ''}>
+                        {row.nota || '—'}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-ink-secondary">
+                        {LOG_TYPE_LABEL[row.logros?.tipo] || 'Award'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {logHasMore && (
+              <button
+                type="button"
+                onClick={loadMoreLog}
+                disabled={logLoadingMore}
+                className="mt-4 inline-flex items-center justify-center rounded-full bg-surface-soft px-4 py-2 text-[12.5px] font-medium text-ink-secondary transition-colors duration-350 ease-emil hover:bg-brand-100 hover:text-brown-600 disabled:opacity-60"
+              >
+                {logLoadingMore ? 'Loading…' : 'Load more'}
+              </button>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

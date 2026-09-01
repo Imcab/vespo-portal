@@ -8,8 +8,10 @@ import Login from './pages/Login';
 import DroneGallery from './pages/DroneGallery';
 import DroneDetail from './pages/DroneDetail';
 import Members from './pages/Members';
+import MemberProfile from './pages/MemberProfile';
 import Areas from './pages/Areas';
 import Tasks from './pages/Tasks';
+import Board from './pages/Board';
 import CalendarPage from './pages/CalendarPage';
 import Tools from './pages/Tools';
 import Inventory from './pages/Inventory';
@@ -17,6 +19,7 @@ import Profile from './pages/Profile';
 import Library from './pages/Library';
 import Leaderboard from './pages/Leaderboard';
 import Achievements from './pages/Achievements';
+import Lootbox from './pages/Lootbox';
 
 function AdminToggle() {
   const { member, adminMode, setAdminMode } = useAuth();
@@ -73,14 +76,17 @@ function AppShell() {
             <Route path="/" element={<DroneGallery />} />
             <Route path="/drone/:id" element={<DroneDetail />} />
             <Route path="/members" element={<Members />} />
+            <Route path="/members/:id" element={<MemberProfile />} />
             <Route path="/areas" element={<Areas />} />
             <Route path="/tasks" element={<Tasks />} />
+            <Route path="/board" element={<Board />} />
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/tools" element={<Tools />} />
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/library" element={<Library />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/achievements" element={<Achievements />} />
+            <Route path="/lootbox" element={<Lootbox />} />
             <Route path="/profile" element={<Profile />} />
           </Routes>
         </main>
